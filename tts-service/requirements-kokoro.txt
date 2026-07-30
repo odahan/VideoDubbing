@@ -1,0 +1,6 @@
+kokoro>=0.9.4,<1
+soundfile>=0.13,<1
+# Misaki (utilisé par Kokoro) tente sinon de télécharger ce modèle au premier
+# démarrage. Sous Windows, cet appel imbriqué à uv ne retrouve pas toujours
+# l'environnement virtuel actif. L'installer ici rend le setup déterministe.
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

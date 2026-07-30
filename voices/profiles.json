@@ -1,0 +1,37 @@
+{
+  "profiles": [
+    {
+      "id": "michael-us",
+      "displayName": "Michael US — grave et professionnel",
+      "engine": "chatterbox-turbo",
+      "referenceAudio": "voices/michael-us.wav",
+      "temperature": 0.75,
+      "repetitionPenalty": 1.22,
+      "topP": 0.93,
+      "topK": 1000,
+      "description": "Voix américaine masculine grave, initialisée depuis Kokoro am_michael puis clonée par Chatterbox-Turbo."
+    },
+    {
+      "id": "adam-us",
+      "displayName": "Adam US — énergique et affirmé",
+      "engine": "chatterbox-turbo",
+      "referenceAudio": "voices/adam-us.wav",
+      "temperature": 0.82,
+      "repetitionPenalty": 1.18,
+      "topP": 0.96,
+      "topK": 1000,
+      "description": "Voix américaine masculine énergique, initialisée depuis Kokoro am_adam puis clonée par Chatterbox-Turbo."
+    },
+    {
+      "id": "narrator-us",
+      "displayName": "Voix Chatterbox intégrée — féminine",
+      "engine": "chatterbox-turbo",
+      "referenceAudio": null,
+      "temperature": 0.8,
+      "repetitionPenalty": 1.2,
+      "topP": 0.95,
+      "topK": 1000,
+      "description": "Voix intégrée originale de Chatterbox-Turbo, conservée comme option."
+    }
+  ]
+}

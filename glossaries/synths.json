@@ -1,0 +1,12 @@
+{
+  "name": "Musique et synthétiseurs",
+  "terms": {
+    "synthétiseur": "synthesizer",
+    "oscillateur": "oscillator",
+    "filtre passe-bas": "low-pass filter",
+    "enveloppe": "envelope",
+    "vélocité": "velocity",
+    "aftertouch": "aftertouch",
+    "séquenceur": "sequencer"
+  }
+}

@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.localdub/
+.packages/
+output/*
+!output/.gitkeep
+voices/*.wav
+voices/previews/
+*.user
+*.suo
+tts-service/__pycache__/
+tts-service/*.pyc

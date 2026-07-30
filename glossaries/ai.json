@@ -1,0 +1,20 @@
+{
+  "name": "Informatique et IA",
+  "preserve": [
+    "SRP",
+    "SOLID",
+    "DRY",
+    "MAF",
+    "Semantic Kernel",
+    "Microsoft Agent Framework",
+    ".NET",
+    "Ollama"
+  ],
+  "terms": {
+    "IA": "AI",
+    "grand modèle de langage": "large language model",
+    "modèle de langage": "language model",
+    "invite": "prompt",
+    "inférence": "inference"
+  }
+}

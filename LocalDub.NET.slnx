@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/LocalDub.NET/LocalDub.NET.csproj" />
+  <Project Path="src/LocalDub.Voices/LocalDub.Voices.csproj" />
+  <Project Path="tests/LocalDub.NET.Tests/LocalDub.NET.Tests.csproj" />
+</Solution>
