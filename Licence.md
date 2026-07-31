@@ -21,6 +21,8 @@ Any commercial use requires the copyright holder's prior written permission. Com
 - incorporating the Software into a product, service, workflow, or content made available for commercial advantage or monetary compensation;
 - using the Software to create, process, or publish paid or sponsored content where the Software is a material part of the production workflow.
 
+Videos that are monetized, including through advertising revenue, sponsorship, paid access, subscriptions, affiliate income, or similar compensation, are considered commercial use and are subject to the same requirements under this license.
+
 To request permission or a commercial license, contact the copyright holder before beginning the commercial use.
 
 ## 4. Restrictions

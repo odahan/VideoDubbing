@@ -21,6 +21,8 @@ Toute utilisation commerciale nécessite l'accord écrit préalable de l'auteur 
 - l'intégration du Logiciel dans un produit, un service, un flux de production ou un contenu proposé dans un but d'avantage commercial ou de compensation financière ;
 - l'utilisation du Logiciel pour créer, traiter ou publier un contenu payant ou sponsorisé lorsque le Logiciel constitue une partie importante du flux de production.
 
+Les vidéos monétisées, notamment par des revenus publicitaires, un parrainage, un accès payant, des abonnements, des revenus d'affiliation ou toute forme de rémunération similaire, sont considérées comme un usage commercial et sont soumises aux mêmes règles prévues par cette licence.
+
 Pour demander une autorisation ou une licence commerciale, contactez l'auteur avant de commencer toute utilisation commerciale.
 
 ## 4. Restrictions
