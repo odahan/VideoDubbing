@@ -154,4 +154,4 @@ dotnet test LocalDub.NET.slnx --configuration Release -m:1
 
 ## Licences et monétisation
 
-Le code du projet peut être utilisé séparément selon sa propre licence. Les outils et modèles conservent leurs licences respectives. Chatterbox et ses poids officiels sont annoncés sous licence MIT ; whisper.cpp est sous licence MIT. Vérifiez toujours les licences des modèles Ollama et des références vocales que vous choisissez avant une publication monétisée.
+Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET](Licence.FR.md). **Lisez et respectez cette licence avant toute utilisation du projet.** L'utilisation privée et non commerciale est gratuite ; l'utilisation commerciale exige l'accord écrit préalable de l'auteur. Les outils et modèles conservent leurs licences respectives. Chatterbox et ses poids officiels sont annoncés sous licence MIT ; whisper.cpp est sous licence MIT. Vérifiez toujours les licences des modèles Ollama et des références vocales que vous choisissez avant une publication monétisée.
