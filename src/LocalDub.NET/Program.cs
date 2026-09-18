@@ -20,6 +20,17 @@ public static class Program
             cancellation.Cancel();
         };
 
+        using var bootstrapLoggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.AddSimpleConsole(options =>
+            {
+                options.SingleLine = true;
+                options.TimestampFormat = "HH:mm:ss ";
+            });
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger("LocalDub.Bootstrap");
+
         try
         {
             var root = PathResolver.FindProjectRoot();
@@ -43,6 +54,10 @@ public static class Program
         catch (Exception exception)
         {
             Console.Error.WriteLine($"Erreur : {exception.Message}");
+            // The console message stays concise for the end user, but the full exception
+            // (including stack trace and inner exceptions) is always logged for diagnosability.
+            bootstrapLogger.LogError(exception, "Échec non géré de l'exécution de LocalDub.NET");
+
             return 1;
         }
     }
@@ -86,6 +101,14 @@ public static class Program
 
     private static async Task<int> ExecuteAsync(CliArguments arguments, IServiceProvider services, CancellationToken cancellationToken)
     {
+        // "--help" is parsed as a switch on the "dub" command rather than a distinct command name,
+        // so it must be checked before dispatching on arguments.Command.
+        if (arguments.Has("help"))
+        {
+            PrintHelp();
+            return 0;
+        }
+
         switch (arguments.Command)
         {
             case "setup":

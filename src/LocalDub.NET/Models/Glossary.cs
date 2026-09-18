@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace LocalDub.Models;
 
+/// <summary>Mandatory terminology and preserved terms applied by the translator for a given topic.</summary>
 public sealed class Glossary
 {
     [JsonPropertyName("name")]

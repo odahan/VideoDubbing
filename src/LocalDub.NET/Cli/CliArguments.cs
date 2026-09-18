@@ -2,6 +2,7 @@ using LocalDub.Models;
 
 namespace LocalDub.Cli;
 
+/// <summary>Parsed command-line invocation: a command name plus its "--name value" options.</summary>
 public sealed class CliArguments
 {
     public string Command { get; init; } = "help";

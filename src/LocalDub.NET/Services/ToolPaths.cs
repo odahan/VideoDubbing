@@ -3,6 +3,12 @@ using LocalDub.Utils;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Resolves the file-system locations of every external tool and Python environment used by the
+/// pipeline (FFmpeg, whisper.cpp, model files, TTS/separation/Kokoro virtual environments),
+/// preferring tools already available on PATH before falling back to the managed installation
+/// produced by <see cref="SetupService"/>.
+/// </summary>
 public sealed class ToolPaths(AppSettings settings, PathResolver paths)
 {
     public string ToolsRoot => paths.Resolve(settings.Paths.ToolsRoot);
@@ -32,6 +38,10 @@ public sealed class ToolPaths(AppSettings settings, PathResolver paths)
             Path.Combine(ToolsRoot, "whisper", "Release", Executable("whisper-cli")),
             Path.Combine(ToolsRoot, "whisper", Executable("main"))
         };
+        // Falls back to the first candidate path even when none exists yet, so that callers such as
+        // DoctorService can report a clear "missing" diagnostic instead of an exception being thrown
+        // from a simple property getter. Callers that actually need to run Whisper (WhisperTranscriber)
+        // are responsible for validating existence beforehand with a precise error message.
         return names.FirstOrDefault(File.Exists) ?? names[0];
     }
 

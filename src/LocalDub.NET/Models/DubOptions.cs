@@ -1,5 +1,6 @@
 namespace LocalDub.Models;
 
+/// <summary>Fully-resolved options for a single "dub" pipeline run.</summary>
 public sealed class DubOptions
 {
     public required string InputPath { get; init; }

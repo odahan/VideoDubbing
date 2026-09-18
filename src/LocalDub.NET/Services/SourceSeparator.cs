@@ -4,14 +4,23 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>Paths of the vocals and accompaniment stems produced by source separation.</summary>
 public sealed record SeparatedAudio(string VocalsPath, string AccompanimentPath);
 
+/// <summary>
+/// Separates a mixed audio track into vocals and accompaniment stems using Demucs, so that the
+/// original background music/effects can be preserved and remixed with the dubbed voice.
+/// </summary>
 public sealed class SourceSeparator(
     ToolPaths tools,
     ProcessRunner processRunner,
     AppSettings settings,
     ILogger<SourceSeparator> logger)
 {
+    /// <summary>
+    /// Separates <paramref name="sourceWav"/> into vocals/accompaniment stems, reusing a previous
+    /// result under <paramref name="outputRoot"/> if one already exists.
+    /// </summary>
     public async Task<SeparatedAudio> SeparateAsync(string sourceWav, string outputRoot, CancellationToken cancellationToken)
     {
         if (!File.Exists(tools.SeparationPython))

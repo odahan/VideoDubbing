@@ -5,6 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Manages the lifecycle of the local Chatterbox TTS HTTP service: checks whether it is already
+/// running, starts it as a child Python process if needed, and stops it on disposal.
+/// </summary>
 public sealed class TtsServiceHost(
     ToolPaths tools,
     AppSettings settings,
@@ -14,6 +18,10 @@ public sealed class TtsServiceHost(
 {
     private Process? _process;
 
+    /// <summary>
+    /// Ensures the Chatterbox service is reachable, starting it automatically if configured to do
+    /// so and it is not already healthy.
+    /// </summary>
     public async Task EnsureRunningAsync(CancellationToken cancellationToken)
     {
         if (await IsHealthyAsync(cancellationToken))
@@ -114,10 +122,24 @@ public sealed class TtsServiceHost(
 
     public ValueTask DisposeAsync()
     {
-        if (_process is { HasExited: false })
+        if (_process is { HasExited: false } process)
         {
-            _process.Kill(entireProcessTree: true);
-            _process.Dispose();
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // The process may have exited between the HasExited check and the Kill call.
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // The process could not be terminated (e.g. already terminating, insufficient rights).
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
 
         return ValueTask.CompletedTask;

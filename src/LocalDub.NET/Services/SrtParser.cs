@@ -4,11 +4,13 @@ using LocalDub.Models;
 
 namespace LocalDub.Services;
 
+/// <summary>Parses SubRip (.srt) subtitle content into dub segments.</summary>
 public static partial class SrtParser
 {
     [GeneratedRegex(@"(?ms)^\s*(?<id>\d+)\s*\r?\n(?<start>\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(?<end>\d{2}:\d{2}:\d{2}[,.]\d{3})[^\r\n]*\r?\n(?<text>.*?)(?=\r?\n\s*\r?\n|\z)")]
     private static partial Regex EntryRegex();
 
+    /// <summary>Parses the given SRT content into an ordered list of dub segments with source text and timestamps.</summary>
     public static IReadOnlyList<DubSegment> Parse(string content)
     {
         return EntryRegex().Matches(content)

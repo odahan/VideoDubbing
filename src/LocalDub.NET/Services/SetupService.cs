@@ -9,6 +9,11 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Performs the one-time offline setup of LocalDub.NET: downloads and installs FFmpeg,
+/// whisper.cpp, the Whisper model, required Ollama models, and the Python virtual environments
+/// (TTS, source separation, Kokoro) needed to run entirely offline afterwards.
+/// </summary>
 public sealed class SetupService(
     ToolPaths tools,
     AppSettings settings,
@@ -21,6 +26,7 @@ public sealed class SetupService(
     private const string WhisperReleaseApi = "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest";
     private const string UvReleaseApi = "https://api.github.com/repos/astral-sh/uv/releases/latest";
 
+    /// <summary>Runs the full setup sequence, skipping any component that is already installed.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(tools.ToolsRoot);
@@ -280,6 +286,13 @@ public sealed class SetupService(
         {
             await input.CopyToAsync(output, cancellationToken);
         }
+
+        // No known-good checksum is available for these third-party releases (they are updated
+        // independently of LocalDub.NET), so full integrity verification against a reference hash
+        // is not possible here. The SHA-256 of the downloaded file is still logged so that a user
+        // can audit or compare it manually if needed (e.g. against a checksum published upstream).
+        var digest = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(temporary, cancellationToken))).ToLowerInvariant();
+        logger.LogInformation("Téléchargement terminé : {File} (SHA-256 {Digest})", Path.GetFileName(destination), digest);
 
         File.Move(temporary, destination, overwrite: true);
     }

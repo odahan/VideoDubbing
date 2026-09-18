@@ -4,12 +4,16 @@ using LocalDub.Models;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Synthesizes English narration audio for dub segments via the local Chatterbox TTS HTTP service.
+/// </summary>
 public sealed class ChatterboxSynthesizer(
     AppSettings settings,
     VoiceProfileService profiles,
     TtsServiceHost serviceHost,
     IHttpClientFactory httpClientFactory)
 {
+    /// <summary>Synthesizes <paramref name="text"/> with the given voice profile and writes the resulting WAV to <paramref name="outputWav"/>.</summary>
     public async Task SynthesizeAsync(
         string text,
         string outputWav,
@@ -36,6 +40,10 @@ public sealed class ChatterboxSynthesizer(
         await source.CopyToAsync(target, cancellationToken);
     }
 
+    /// <summary>
+    /// Generates one audition preview WAV per standard voice tuning variant (see
+    /// <see cref="VoiceProfileService.StandardVariants"/>) so a user can compare them.
+    /// </summary>
     public async Task<IReadOnlyList<string>> AuditionAsync(
         string text,
         VoiceProfile profile,
@@ -43,29 +51,24 @@ public sealed class ChatterboxSynthesizer(
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(outputDirectory);
-        var variants = new[]
-        {
-            (Name: "neutral", Temperature: profile.Temperature, TopP: profile.TopP, Repetition: profile.RepetitionPenalty),
-            (Name: "stable", Temperature: 0.65, TopP: 0.90, Repetition: 1.25),
-            (Name: "expressive", Temperature: 0.95, TopP: 0.98, Repetition: 1.10)
-        };
 
         var outputs = new List<string>();
-        foreach (var variant in variants)
+        foreach (var variantName in VoiceProfileService.StandardVariants)
         {
+            var tuning = VoiceProfileService.GetVariantTuning(variantName, profile);
             var adjusted = new VoiceProfile
             {
                 Id = profile.Id,
                 DisplayName = profile.DisplayName,
                 Engine = profile.Engine,
                 ReferenceAudio = profile.ReferenceAudio,
-                Temperature = variant.Temperature,
-                RepetitionPenalty = variant.Repetition,
-                TopP = variant.TopP,
+                Temperature = tuning.Temperature,
+                RepetitionPenalty = tuning.RepetitionPenalty,
+                TopP = tuning.TopP,
                 TopK = profile.TopK,
                 Description = profile.Description
             };
-            var output = Path.Combine(outputDirectory, $"{profile.Id}-{variant.Name}.wav");
+            var output = Path.Combine(outputDirectory, $"{profile.Id}-{variantName}.wav");
             await SynthesizeAsync(text, output, adjusted, cancellationToken);
             outputs.Add(output);
         }

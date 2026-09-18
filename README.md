@@ -30,7 +30,7 @@ The separate voice-profile tool also has its own documentation: [LocalDub.Voices
 7. Place each sentence at its timestamp and produce a WAV exactly as long as the video.
 8. Create the SRT and a new `-EN` video without re-encoding its image.
 
-The main translator is unloaded before Chatterbox to free VRAM. Any rewrites then use the lightweight `granite4:3b` model.
+The main translator is unloaded before Chatterbox to free VRAM. Any rewrites then use the lightweight `granite4.2:3b` model.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ The main translator is unloaded before Chatterbox to free VRAM. Any rewrites the
 - Ollama installed and running;
 - about 20–30 GB free for tools, environments, and models.
 
-The supplied configuration uses `gemma4:12b`. You can select another Ollama model in `appsettings.json` or with `--model`.
+The supplied configuration uses `qwen38OD:latest`. You can select another Ollama model in `appsettings.json` or with `--model`.
 
 ## Automatic setup
 
@@ -112,7 +112,7 @@ dotnet run --project src/LocalDub.NET -- dub `
   --voice-variant stable `
   --glossary ai `
   --preserve "SRP,SOLID,DRY,MAF,Semantic Kernel" `
-  --model gemma4:12b `
+  --model qwen38OD:latest `
   --yes
 ```
 

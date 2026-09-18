@@ -30,7 +30,7 @@ L’outil séparé de gestion des profils vocaux possède aussi sa [documentatio
 7. Placement de chaque phrase à son timestamp et création d’un WAV de la durée exacte de la vidéo.
 8. Création du SRT et d’une nouvelle vidéo `-EN` sans réencoder l’image.
 
-Le traducteur principal est déchargé avant Chatterbox afin de libérer la VRAM. Les éventuelles reformulations utilisent ensuite le modèle léger `granite4:3b`.
+Le traducteur principal est déchargé avant Chatterbox afin de libérer la VRAM. Les éventuelles reformulations utilisent ensuite le modèle léger `granite4.2:3b`.
 
 ## Prérequis
 
@@ -40,7 +40,7 @@ Le traducteur principal est déchargé avant Chatterbox afin de libérer la VRAM
 - Ollama installé et démarré ;
 - environ 20 à 30 Go libres pour les outils, environnements et modèles.
 
-La configuration fournie utilise `gemma4:12b`. Un autre modèle Ollama peut être choisi dans `appsettings.json` ou avec `--model`.
+La configuration fournie utilise `qwen38OD:latest`. Un autre modèle Ollama peut être choisi dans `appsettings.json` ou avec `--model`.
 
 ## Installation automatique
 
@@ -105,7 +105,7 @@ dotnet run --project src/LocalDub.NET -- dub `
   --voice-variant stable `
   --glossary ai `
   --preserve "SRP,SOLID,DRY,MAF,Semantic Kernel" `
-  --model gemma4:12b `
+  --model qwen38OD:latest `
   --yes
 ```
 

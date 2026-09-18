@@ -2,12 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace LocalDub.Models;
 
+/// <summary>Root document deserialized from the voices catalog file (voices/profiles.json).</summary>
 public sealed class VoiceProfilesDocument
 {
     [JsonPropertyName("profiles")]
     public List<VoiceProfile> Profiles { get; init; } = [];
 }
 
+/// <summary>A named text-to-speech voice configuration, including its default synthesis tuning.</summary>
 public sealed class VoiceProfile
 {
     [JsonPropertyName("id")]

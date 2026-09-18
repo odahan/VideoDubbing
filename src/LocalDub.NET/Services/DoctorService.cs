@@ -3,8 +3,13 @@ using LocalDub.Utils;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Checks that every external dependency required by LocalDub.NET (tools, models, Python
+/// environments, Ollama models) is present and reports a pass/fail diagnostic for each.
+/// </summary>
 public sealed class DoctorService(ToolPaths tools, AppSettings settings, PathResolver paths, ProcessRunner processRunner)
 {
+    /// <summary>Runs every diagnostic check and prints a report to the console. Returns true only if every check passed.</summary>
     public async Task<bool> RunAsync(CancellationToken cancellationToken)
     {
         var checks = new List<(string Name, bool Success, string Detail)>

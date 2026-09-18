@@ -5,14 +5,28 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Transcribes French speech audio to timestamped segments using the local whisper.cpp binary.
+/// </summary>
 public sealed class WhisperTranscriber(
     ToolPaths tools,
     ProcessRunner processRunner,
     AppSettings settings,
     ILogger<WhisperTranscriber> logger)
 {
+    /// <summary>
+    /// Runs whisper.cpp against <paramref name="audioPath"/> and parses the resulting SRT file into
+    /// dub segments. Throws if the Whisper binary is missing or produces no usable segments.
+    /// </summary>
     public async Task<TranscriptionResult> TranscribeAsync(string audioPath, string outputPrefix, CancellationToken cancellationToken)
     {
+        if (!File.Exists(tools.Whisper))
+        {
+            throw new FileNotFoundException(
+                "Whisper.cpp est introuvable (ni sur le PATH, ni dans les emplacements gérés). Exécutez 'localdub setup'.",
+                tools.Whisper);
+        }
+
         logger.LogInformation("Transcription française avec Whisper {Model}", settings.Whisper.ModelName);
         await processRunner.RunAsync(tools.Whisper,
         [

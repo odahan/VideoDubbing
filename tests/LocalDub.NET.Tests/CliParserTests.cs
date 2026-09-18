@@ -42,4 +42,24 @@ public sealed class CliParserTests
 
         Assert.Equal(expected, result.GetProductionMode());
     }
+
+    [Fact]
+    public void HelpFlagIsRecognizedAsSwitchRegardlessOfPosition()
+    {
+        // "--help" (with dashes) is not a distinct command: it is parsed as the "dub" command with
+        // a "help" switch set. Program.ExecuteAsync relies on this to still display the help text
+        // instead of silently starting a dubbing run. See regression covered here.
+        var result = CliParser.Parse(["--help"]);
+
+        Assert.Equal("dub", result.Command);
+        Assert.True(result.Has("help"));
+    }
+
+    [Fact]
+    public void HelpCommandWithoutDashesIsAlsoRecognized()
+    {
+        var result = CliParser.Parse(["help"]);
+
+        Assert.Equal("help", result.Command);
+    }
 }

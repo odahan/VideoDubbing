@@ -6,6 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Synthesizes each dub segment, fits it into its time slot (rewording or speeding up as needed),
+/// and concatenates the results into a single dubbed WAV spanning the full video duration.
+/// </summary>
 public sealed class AudioTimelineBuilder(
     ToolPaths tools,
     ProcessRunner processRunner,
@@ -15,6 +19,10 @@ public sealed class AudioTimelineBuilder(
     AppSettings settings,
     ILogger<AudioTimelineBuilder> logger)
 {
+    /// <summary>
+    /// Synthesizes, times and concatenates every segment into <paramref name="outputWav"/>, padded
+    /// or trimmed to exactly <paramref name="videoDurationSeconds"/>.
+    /// </summary>
     public async Task BuildAsync(
         IReadOnlyList<DubSegment> segments,
         VoiceProfile voice,
@@ -92,6 +100,17 @@ public sealed class AudioTimelineBuilder(
         // comprime exactement le clip dans son créneau, sans couper de mots.
         var finalDuration = segment.SynthesizedDurationSeconds;
         var fallbackSpeed = Math.Max(1, finalDuration / availableSeconds);
+        if (fallbackSpeed > settings.Tts.AbsoluteMaxSpeedRatio)
+        {
+            logger.LogError(
+                "Segment {Id} : la vitesse de secours x{Speed:0.00} dépasse la limite absolue x{Limit:0.00} ; " +
+                "le clip sera plafonné et dépassera légèrement son créneau au lieu de dégrader fortement la voix.",
+                segment.Id,
+                fallbackSpeed,
+                settings.Tts.AbsoluteMaxSpeedRatio);
+            fallbackSpeed = settings.Tts.AbsoluteMaxSpeedRatio;
+        }
+
         segment.AppliedSpeedRatio = fallbackSpeed;
         logger.LogWarning(
             "Segment {Id} encore trop long après deux reformulations : accélération exceptionnelle x{Speed:0.00} (limite habituelle x{Limit:0.00})",

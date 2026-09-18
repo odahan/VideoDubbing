@@ -1,5 +1,6 @@
 namespace LocalDub.Cli;
 
+/// <summary>Parses raw command-line arguments into a <see cref="CliArguments"/> instance.</summary>
 public static class CliParser
 {
     private static readonly HashSet<string> Switches = new(StringComparer.OrdinalIgnoreCase)
@@ -7,6 +8,10 @@ public static class CliParser
         "yes", "overwrite", "help", "keep-work"
     };
 
+    /// <summary>
+    /// Parses <paramref name="args"/> into a command name and a set of "--name value" (or boolean
+    /// switch) options. Defaults to the "dub" command when no positional command is given.
+    /// </summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
     {
         if (args.Count == 0)

@@ -5,8 +5,16 @@ using LocalDub.Utils;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Mixes the dubbed voice track back into the source video using FFmpeg, according to the selected
+/// <see cref="AudioMode"/> (fully separated background, ducked original mix, or external mix only).
+/// </summary>
 public sealed class VideoMixer(ToolPaths tools, ProcessRunner processRunner, AppSettings settings)
 {
+    /// <summary>
+    /// Produces <paramref name="outputVideo"/> by combining the original video track with the
+    /// dubbed audio, mixed according to <paramref name="mode"/>.
+    /// </summary>
     public Task MixAsync(
         string inputVideo,
         string dubbedAudio,
@@ -16,6 +24,11 @@ public sealed class VideoMixer(ToolPaths tools, ProcessRunner processRunner, App
         string outputVideo,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(dubbedAudio) || !File.Exists(dubbedAudio))
+        {
+            throw new FileNotFoundException("La piste de doublage est requise pour le mixage vidéo.", dubbedAudio);
+        }
+
         var args = new List<string>
         {
             "-hide_banner", "-loglevel", "error", "-y", "-i", inputVideo

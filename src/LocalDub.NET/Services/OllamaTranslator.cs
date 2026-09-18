@@ -11,6 +11,10 @@ using OllamaSharp.Models;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Translates French dub segments into natural US English narration using a local Ollama model,
+/// and can rewrite an over-long translation to fit within a target speaking duration.
+/// </summary>
 public sealed class OllamaTranslator(
     AppSettings settings,
     IHttpClientFactory httpClientFactory,
@@ -21,6 +25,10 @@ public sealed class OllamaTranslator(
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Translates every segment in <paramref name="segments"/> in place (batches of
+    /// <c>Ollama.BatchSize</c>), honoring the optional glossary's mandatory terms and preserved terms.
+    /// </summary>
     public async Task TranslateAsync(
         IReadOnlyList<DubSegment> segments,
         Glossary? glossary,
@@ -50,14 +58,19 @@ public sealed class OllamaTranslator(
                     cancellationToken: cancellationToken);
                 ApplyTranslations(batch, response.Result);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
                 throw new TimeoutException(
-                    $"Ollama/{model} n'a pas répondu dans le délai de {settings.Ollama.RequestTimeoutMinutes} minutes.");
+                    $"Ollama/{model} n'a pas répondu dans le délai de {settings.Ollama.RequestTimeoutMinutes} minutes.",
+                    exception);
             }
         }
     }
 
+    /// <summary>
+    /// Asks the timing model to rewrite <paramref name="text"/> so that its spoken duration shrinks
+    /// from <paramref name="currentDuration"/> towards <paramref name="targetDuration"/>.
+    /// </summary>
     public async Task<string> ShortenAsync(
         string text,
         double currentDuration,
@@ -87,10 +100,11 @@ public sealed class OllamaTranslator(
                 cancellationToken: cancellationToken);
             return response.Text.Trim().Trim('"');
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"Ollama/{model} n'a pas répondu dans le délai de {settings.Ollama.RequestTimeoutMinutes} minutes pendant la reformulation.");
+                $"Ollama/{model} n'a pas répondu dans le délai de {settings.Ollama.RequestTimeoutMinutes} minutes pendant la reformulation.",
+                exception);
         }
     }
 
@@ -107,7 +121,11 @@ public sealed class OllamaTranslator(
         var chatOptions = new ChatOptions
         {
             Temperature = settings.Ollama.Temperature,
-            MaxOutputTokens = maxOutputTokens
+            MaxOutputTokens = maxOutputTokens,
+            Reasoning = new ReasoningOptions
+            {
+                Effort = settings.Ollama.EnableThinking ? ReasoningEffort.Medium : ReasoningEffort.None
+            }
         };
         chatOptions.AddOllamaOption(OllamaOption.NumCtx, contextSize);
         return new ChatClientAgentRunOptions(chatOptions);

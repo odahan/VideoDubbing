@@ -3,8 +3,18 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Utils;
 
+/// <summary>
+/// Runs external command-line tools (FFmpeg, whisper.cpp, Python, ollama, ...) as child processes,
+/// capturing their standard output/error and translating a non-zero exit code into a
+/// <see cref="ProcessExecutionException"/> with the captured diagnostics.
+/// </summary>
 public sealed class ProcessRunner(ILogger<ProcessRunner> logger)
 {
+    /// <summary>
+    /// Starts <paramref name="executable"/> with the given arguments, waits for it to exit, and
+    /// returns its captured output. Throws <see cref="ProcessExecutionException"/> if the process
+    /// exits with a non-zero code, or <see cref="FileNotFoundException"/> if it cannot be started.
+    /// </summary>
     public async Task<ProcessResult> RunAsync(
         string executable,
         IEnumerable<string> arguments,
@@ -75,6 +85,10 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger)
         return result;
     }
 
+    /// <summary>
+    /// Searches the PATH environment variable for an executable with the given base name,
+    /// appending ".exe" automatically on Windows. Returns null if it cannot be found.
+    /// </summary>
     public static string? FindOnPath(string executable)
     {
         var candidates = OperatingSystem.IsWindows()
@@ -114,11 +128,18 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger)
     }
 }
 
+/// <summary>
+/// Captured result of a completed process execution.
+/// </summary>
 public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError)
 {
     public bool Succeeded => ExitCode == 0;
 }
 
+/// <summary>
+/// Thrown when an external process started by <see cref="ProcessRunner"/> exits with a non-zero
+/// code. The message includes the captured standard error/output for diagnosability.
+/// </summary>
 public sealed class ProcessExecutionException(string executable, ProcessResult result)
     : Exception(BuildMessage(executable, result))
 {

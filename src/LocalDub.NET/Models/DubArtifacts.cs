@@ -1,5 +1,6 @@
 namespace LocalDub.Models;
 
+/// <summary>Paths of the artifacts produced by a completed dubbing run.</summary>
 public sealed record DubArtifacts(
     string? VideoPath,
     string DubbedWavPath,

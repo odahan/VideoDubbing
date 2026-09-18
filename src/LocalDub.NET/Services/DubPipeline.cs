@@ -8,6 +8,12 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalDub.Services;
 
+/// <summary>
+/// Orchestrates the full French-to-English dubbing pipeline: audio extraction, optional vocal
+/// separation, transcription, translation, speech synthesis, timeline assembly, subtitle
+/// generation and final video/audio mixing. Intermediate artifacts are cached in a per-input
+/// work directory so that interrupted runs can resume without repeating expensive steps.
+/// </summary>
 public sealed class DubPipeline(
     AppSettings settings,
     PathResolver paths,
@@ -30,6 +36,10 @@ public sealed class DubPipeline(
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Runs the dubbing pipeline end to end for the given options and returns the paths of the
+    /// produced artifacts (video, WAV, SRT, manifest, work directory).
+    /// </summary>
     public async Task<DubArtifacts> RunAsync(DubOptions options, CancellationToken cancellationToken)
     {
         var input = Path.GetFullPath(options.InputPath);
@@ -159,7 +169,7 @@ public sealed class DubPipeline(
         var preservedTerms = string.Join(
             '|',
             options.PreservedTerms.OrderBy(term => term, StringComparer.OrdinalIgnoreCase));
-        var signature = $"{input}|{file.Length}|{file.LastWriteTimeUtc.Ticks}|{options.AudioMode}|{options.OllamaModel ?? settings.Ollama.Model}|{options.GlossaryName}";
+        var signature = $"{input}|{file.Length}|{file.LastWriteTimeUtc.Ticks}|{options.AudioMode}|{options.OllamaModel ?? settings.Ollama.Model}|{options.GlossaryName}|glossary:{GetGlossaryContentSignature(options.GlossaryName)}";
         if (!string.IsNullOrEmpty(preservedTerms))
         {
             signature += $"|preserve:{preservedTerms}";
@@ -167,6 +177,28 @@ public sealed class DubPipeline(
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature))).ToLowerInvariant()[..10];
         var name = string.Concat(Path.GetFileNameWithoutExtension(input).Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
         return Path.Combine(paths.Resolve(settings.Paths.OutputRoot), "work", $"{name}-{hash}");
+    }
+
+    /// <summary>
+    /// Computes a short hash of the glossary file content so that editing an existing glossary
+    /// (without renaming it) invalidates the cached transcription/translation work directory,
+    /// instead of silently reusing stale translations from a previous run.
+    /// </summary>
+    private string GetGlossaryContentSignature(string? glossaryName)
+    {
+        if (string.IsNullOrWhiteSpace(glossaryName))
+        {
+            return "none";
+        }
+
+        var file = glossaryName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? glossaryName : $"{glossaryName}.json";
+        var path = Path.IsPathRooted(file) ? file : Path.Combine(paths.Resolve(settings.Paths.GlossariesRoot), file);
+        if (!File.Exists(path))
+        {
+            return "missing";
+        }
+
+        return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant()[..10];
     }
 
     private async Task StopOllamaModelAsync(string model, CancellationToken cancellationToken)

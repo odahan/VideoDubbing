@@ -2,6 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace LocalDub.Models;
 
+/// <summary>
+/// A single timed subtitle/dub segment, carrying the source French text, its English translation,
+/// and the runtime state produced while fitting the synthesized voice into its time slot.
+/// </summary>
 public sealed class DubSegment
 {
     [JsonPropertyName("id")]

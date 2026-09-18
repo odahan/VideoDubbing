@@ -5,11 +5,16 @@ using LocalDub.Configuration;
 
 namespace LocalDub.Cli;
 
+/// <summary>
+/// Builds a complete <see cref="DubOptions"/> from CLI arguments, prompting the user interactively
+/// on the console for any value that was not supplied and is required (unless running with --yes).
+/// </summary>
 public sealed class InteractiveConsole(
     VoiceProfileService voices,
     AppSettings settings,
     ProcessRunner processRunner)
 {
+    /// <summary>Builds the dubbing options for a "dub" invocation, combining CLI flags with interactive prompts as needed.</summary>
     public async Task<DubOptions> BuildDubOptionsAsync(CliArguments arguments, CancellationToken cancellationToken)
     {
         var nonInteractive = arguments.Has("yes");
@@ -263,7 +268,7 @@ public sealed class InteractiveConsole(
                 .Where(name => !name.StartsWith("all-minilm", StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderByDescending(name => name.Equals(settings.Ollama.Model, StringComparison.OrdinalIgnoreCase))
-                .ThenBy(name => ModelOrder(name))
+                .ThenBy(ModelOrder)
                 .ToList();
         }
         catch (Exception exception) when (exception is FileNotFoundException or ProcessExecutionException)
@@ -289,16 +294,13 @@ public sealed class InteractiveConsole(
             : throw new ArgumentException("Modèle Ollama invalide.");
     }
 
-    private static int ModelOrder(string name) =>
-        name.StartsWith("llama3.1", StringComparison.OrdinalIgnoreCase) ? 1 :
-        name.StartsWith("granite4", StringComparison.OrdinalIgnoreCase) ? 2 :
-        name.StartsWith("deepseek-coder", StringComparison.OrdinalIgnoreCase) ? 4 : 3;
+    private int ModelOrder(string name) =>
+        name.Equals(settings.Ollama.Model, StringComparison.OrdinalIgnoreCase) ? 1 :
+        name.Equals(settings.Ollama.TimingModel, StringComparison.OrdinalIgnoreCase) ? 2 : 3;
 
-    private static string DescribeModel(string name) =>
-        name.StartsWith("gemma4:12b", StringComparison.OrdinalIgnoreCase) ? " — meilleure qualité actuelle" :
-        name.StartsWith("llama3.1", StringComparison.OrdinalIgnoreCase) ? " — plus léger, bon candidat" :
-        name.StartsWith("granite4:3b", StringComparison.OrdinalIgnoreCase) ? " — très rapide, qualité plus variable" :
-        name.StartsWith("deepseek-coder", StringComparison.OrdinalIgnoreCase) ? " — spécialisé code, déconseillé ici" :
+    private string DescribeModel(string name) =>
+        name.Equals(settings.Ollama.Model, StringComparison.OrdinalIgnoreCase) ? " — modèle de traduction configuré" :
+        name.Equals(settings.Ollama.TimingModel, StringComparison.OrdinalIgnoreCase) ? " — modèle de recadrage configuré" :
         string.Empty;
 
     private static List<string> ParsePreservedTerms(string? value) =>
