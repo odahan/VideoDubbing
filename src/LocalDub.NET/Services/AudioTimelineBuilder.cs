@@ -30,8 +30,18 @@ public sealed class AudioTimelineBuilder(
         double videoDurationSeconds,
         string workDirectory,
         string outputWav,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Glossary? glossary = null)
     {
+        if (segments.Count == 0)
+        {
+            throw new InvalidDataException("No speech segments are available for synthesis.");
+        }
+        for (var index = 0; index < segments.Count; index++)
+        {
+            SegmentTiming.GetAvailableSeconds(segments, index, videoDurationSeconds);
+        }
+
         var clipsDirectory = Path.Combine(workDirectory, "tts-clips");
         Directory.CreateDirectory(clipsDirectory);
         var concatEntries = new List<string>();
@@ -45,9 +55,9 @@ public sealed class AudioTimelineBuilder(
                 ? segments[index + 1].StartMilliseconds / 1000d
                 : videoDurationSeconds;
             var start = segment.StartMilliseconds / 1000d;
-            var available = Math.Max(segment.SlotDurationSeconds, nextStart - start - 0.02);
+            var available = SegmentTiming.GetAvailableSeconds(segments, index, videoDurationSeconds);
 
-            await SynthesizeToFitAsync(segment, voice, ollamaModel, rawPath, available, cancellationToken);
+            await SynthesizeToFitAsync(segment, voice, ollamaModel, rawPath, available, glossary, cancellationToken);
             var firstDelay = index == 0 ? start : 0;
             var clipDuration = index == 0 ? nextStart : Math.Max(0.01, nextStart - start);
             await RenderSlotAsync(rawPath, slotPath, segment.AppliedSpeedRatio, firstDelay, clipDuration, cancellationToken);
@@ -73,6 +83,7 @@ public sealed class AudioTimelineBuilder(
         string? ollamaModel,
         string rawPath,
         double availableSeconds,
+        Glossary? glossary,
         CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 3; attempt++)
@@ -91,24 +102,18 @@ public sealed class AudioTimelineBuilder(
             {
                 logger.LogInformation("Reformulation du segment {Id} pour respecter son créneau", segment.Id);
                 segment.Translation = await translator.ShortenAsync(
-                    segment.Translation, duration, availableSeconds * settings.Tts.MaxSpeedRatio, ollamaModel, cancellationToken);
+                    segment.Translation, duration, availableSeconds * settings.Tts.MaxSpeedRatio, ollamaModel, cancellationToken, glossary);
             }
         }
 
-        // Une contrainte de timing isolée ne doit pas faire perdre le doublage
-        // complet. En dernier recours, atempo conserve la hauteur de la voix et
-        // comprime exactement le clip dans son créneau, sans couper de mots.
         var finalDuration = segment.SynthesizedDurationSeconds;
         var fallbackSpeed = Math.Max(1, finalDuration / availableSeconds);
         if (fallbackSpeed > settings.Tts.AbsoluteMaxSpeedRatio)
         {
-            logger.LogError(
-                "Segment {Id} : la vitesse de secours x{Speed:0.00} dépasse la limite absolue x{Limit:0.00} ; " +
-                "le clip sera plafonné et dépassera légèrement son créneau au lieu de dégrader fortement la voix.",
-                segment.Id,
-                fallbackSpeed,
-                settings.Tts.AbsoluteMaxSpeedRatio);
-            fallbackSpeed = settings.Tts.AbsoluteMaxSpeedRatio;
+            throw new InvalidDataException(
+                $"Segment {segment.Id} requires speed x{fallbackSpeed:0.00}, exceeding the limit " +
+                $"x{settings.Tts.AbsoluteMaxSpeedRatio:0.00}. Shorten its translation in segments.json and retry; " +
+                "rendering was stopped to avoid cutting spoken words.");
         }
 
         segment.AppliedSpeedRatio = fallbackSpeed;
@@ -128,6 +133,11 @@ public sealed class AudioTimelineBuilder(
         CancellationToken cancellationToken)
     {
         var filters = new List<string> { $"aresample={settings.Audio.SampleRate}" };
+        while (speedRatio > 2)
+        {
+            filters.Add("atempo=2");
+            speedRatio /= 2;
+        }
         if (speedRatio > 1.0001)
         {
             filters.Add($"atempo={F(speedRatio)}");

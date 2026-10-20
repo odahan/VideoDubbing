@@ -27,7 +27,7 @@ public sealed class DubPipeline(
     AudioTimelineBuilder timelineBuilder,
     SubtitleGenerator subtitleGenerator,
     VideoMixer videoMixer,
-    ProcessRunner processRunner,
+    OllamaModelService ollamaModels,
     ILogger<DubPipeline> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -61,7 +61,9 @@ public sealed class DubPipeline(
             OutputPathPolicy.EnsureWritableOutput(input, output, options.Overwrite);
         }
 
-        var workDirectory = GetWorkDirectory(input, options);
+        var baseVoice = await voices.GetRequiredAsync(options.VoiceProfileId, cancellationToken);
+        var voice = voices.ApplyOverrides(baseVoice, options.VoiceReferencePath, options.VoiceVariant);
+        var workDirectory = GetWorkDirectory(input, options, voice);
         Directory.CreateDirectory(workDirectory);
         var media = await mediaProbe.ProbeAsync(input, cancellationToken);
         logger.LogInformation("Vidéo source : {Duration:mm\\:ss}, audio {Rate} Hz", TimeSpan.FromSeconds(media.DurationSeconds), media.AudioSampleRate);
@@ -101,12 +103,10 @@ public sealed class DubPipeline(
             await SaveSegmentsAsync(segmentsPath, segments, cancellationToken);
         }
 
+        var glossary = await glossaries.LoadAsync(
+            options.GlossaryName, options.PreservedTerms, cancellationToken);
         if (segments.Any(segment => string.IsNullOrWhiteSpace(segment.Translation)))
         {
-            var glossary = await glossaries.LoadAsync(
-                options.GlossaryName,
-                options.PreservedTerms,
-                cancellationToken);
             await translator.TranslateAsync(segments, glossary, options.OllamaModel, cancellationToken);
             await SaveSegmentsAsync(segmentsPath, segments, cancellationToken);
         }
@@ -115,12 +115,10 @@ public sealed class DubPipeline(
         {
             await StopOllamaModelAsync(options.OllamaModel ?? settings.Ollama.Model, cancellationToken);
         }
-        await subtitleGenerator.GenerateAsync(segments, outputSrt, cancellationToken);
-        var baseVoice = await voices.GetRequiredAsync(options.VoiceProfileId, cancellationToken);
-        var voice = voices.ApplyOverrides(baseVoice, options.VoiceReferencePath, options.VoiceVariant);
         await timelineBuilder.BuildAsync(
-            segments, voice, options.OllamaModel, media.DurationSeconds, workDirectory, outputWav, cancellationToken);
+            segments, voice, options.OllamaModel, media.DurationSeconds, workDirectory, outputWav, cancellationToken, glossary);
         await SaveSegmentsAsync(segmentsPath, segments, cancellationToken);
+        await subtitleGenerator.GenerateAsync(segments, outputSrt, cancellationToken);
 
         if (options.ProductionMode == ProductionMode.CompleteVideo)
         {
@@ -163,13 +161,27 @@ public sealed class DubPipeline(
         return new DubArtifacts(options.ProductionMode == ProductionMode.CompleteVideo ? outputVideo : null, outputWav, outputSrt, outputManifest, workDirectory);
     }
 
-    private string GetWorkDirectory(string input, DubOptions options)
+    private string GetWorkDirectory(string input, DubOptions options, VoiceProfile voice)
     {
         var file = new FileInfo(input);
         var preservedTerms = string.Join(
             '|',
             options.PreservedTerms.OrderBy(term => term, StringComparer.OrdinalIgnoreCase));
-        var signature = $"{input}|{file.Length}|{file.LastWriteTimeUtc.Ticks}|{options.AudioMode}|{options.OllamaModel ?? settings.Ollama.Model}|{options.GlossaryName}|glossary:{GetGlossaryContentSignature(options.GlossaryName)}";
+        var pipelineSettings = JsonSerializer.Serialize(new
+        {
+            version = 2,
+            settings.Whisper,
+            settings.Separation,
+            settings.Ollama,
+            settings.Tts,
+            settings.Audio,
+            voice,
+            referenceSignature = GetFileContentSignature(voices.ResolveReference(voice)),
+            options.VoiceProfileId,
+            options.VoiceReferencePath,
+            options.VoiceVariant
+        }, JsonOptions);
+        var signature = $"{pipelineSettings}|{input}|{file.Length}|{file.LastWriteTimeUtc.Ticks}|{options.AudioMode}|{options.OllamaModel ?? settings.Ollama.Model}|{options.GlossaryName}|glossary:{GetGlossaryContentSignature(options.GlossaryName)}";
         if (!string.IsNullOrEmpty(preservedTerms))
         {
             signature += $"|preserve:{preservedTerms}";
@@ -177,6 +189,13 @@ public sealed class DubPipeline(
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature))).ToLowerInvariant()[..10];
         var name = string.Concat(Path.GetFileNameWithoutExtension(input).Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
         return Path.Combine(paths.Resolve(settings.Paths.OutputRoot), "work", $"{name}-{hash}");
+    }
+
+    private static string GetFileContentSignature(string? path)
+    {
+        if (path is null) return "none";
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream));
     }
 
     /// <summary>
@@ -205,10 +224,10 @@ public sealed class DubPipeline(
     {
         try
         {
-            await processRunner.RunAsync("ollama", ["stop", model], cancellationToken: cancellationToken);
+            await ollamaModels.UnloadAsync(model, cancellationToken);
             logger.LogDebug("Modèle Ollama déchargé avant les étapes CUDA audio");
         }
-        catch (Exception exception) when (exception is ProcessExecutionException or FileNotFoundException)
+        catch (Exception exception) when (exception is HttpRequestException or TimeoutException || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             logger.LogWarning("Impossible de décharger automatiquement le modèle Ollama : {Message}", exception.Message);
         }
@@ -223,7 +242,11 @@ public sealed class DubPipeline(
 
     private static async Task SaveSegmentsAsync(string path, IReadOnlyList<DubSegment> segments, CancellationToken cancellationToken)
     {
-        await using var stream = File.Create(path);
-        await JsonSerializer.SerializeAsync(stream, segments, JsonOptions, cancellationToken);
+        var temporary = $"{path}.tmp";
+        await using (var stream = File.Create(temporary))
+        {
+            await JsonSerializer.SerializeAsync(stream, segments, JsonOptions, cancellationToken);
+        }
+        File.Move(temporary, path, overwrite: true);
     }
 }

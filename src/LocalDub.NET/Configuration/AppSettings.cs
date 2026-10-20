@@ -36,7 +36,7 @@ public sealed class PathSettings
 public sealed class OllamaSettings
 {
     public string Endpoint { get; init; } = "http://localhost:11434";
-    public string Model { get; init; } = "qwen38OD:latest";
+    public string Model { get; init; } = "gemma4:12b";
     public int BatchSize { get; init; } = 12;
     public float Temperature { get; init; } = 0.1f;
     public int ContextSize { get; init; } = 16384;
@@ -65,6 +65,9 @@ public sealed class WhisperSettings
     public string ModelUrl { get; init; } = string.Empty;
     public string Language { get; init; } = "fr";
     public int Threads { get; init; } = 8;
+
+    /// <summary>Bounds transcription chunks so a long utterance stays suitable for segment TTS.</summary>
+    public int MaxSegmentCharacters { get; init; } = 200;
 }
 
 /// <summary>
@@ -81,10 +84,8 @@ public sealed class TtsSettings
     public double TargetWordsPerSecond { get; init; } = 3.0;
 
     /// <summary>
-    /// Hard upper bound applied to the last-resort speed-up ratio when a segment still does not
-    /// fit its slot after the maximum number of rewording attempts. Beyond this ratio, FFmpeg's
-    /// "atempo" filter introduces noticeable audio artifacts, so the ratio is clamped instead of
-    /// growing unbounded.
+    /// Hard upper bound for the last-resort speed-up after rewording attempts. A segment that
+    /// still cannot fit at this speed stops rendering rather than silently losing spoken words.
     /// </summary>
     public double AbsoluteMaxSpeedRatio { get; init; } = 2.5;
 }

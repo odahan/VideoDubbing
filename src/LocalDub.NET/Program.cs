@@ -85,6 +85,7 @@ public static class Program
         services.AddSingleton<SourceSeparator>();
         services.AddSingleton<WhisperTranscriber>();
         services.AddSingleton<GlossaryService>();
+        services.AddSingleton<OllamaModelService>();
         services.AddSingleton<OllamaTranslator>();
         services.AddSingleton<VoiceProfileService>();
         services.AddSingleton<TtsServiceHost>();

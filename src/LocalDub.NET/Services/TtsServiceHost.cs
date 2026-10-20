@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Text.Json;
 using LocalDub.Configuration;
 using LocalDub.Utils;
 using Microsoft.Extensions.Logging;
@@ -96,8 +98,6 @@ public sealed class TtsServiceHost(
             return;
         }
 
-        // Uvicorn, Hugging Face et les barres de progression utilisent stderr
-        // même en fonctionnement normal. Ils restent accessibles en niveau Debug.
         logger.LogDebug("Chatterbox : {Message}", message);
     }
 
@@ -108,9 +108,17 @@ public sealed class TtsServiceHost(
             using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(2);
             using var response = await client.GetAsync($"{settings.Tts.ServiceUrl.TrimEnd('/')}/health", cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode) return false;
+            var health = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+            return health.TryGetProperty("status", out var status) && status.GetString() == "ok"
+                && health.TryGetProperty("engine", out var engine) && engine.GetString() == settings.Tts.Engine
+                && health.TryGetProperty("cuda", out var cuda) && cuda.ValueKind == JsonValueKind.True;
         }
         catch (HttpRequestException)
+        {
+            return false;
+        }
+        catch (JsonException)
         {
             return false;
         }
@@ -122,11 +130,14 @@ public sealed class TtsServiceHost(
 
     public ValueTask DisposeAsync()
     {
-        if (_process is { HasExited: false } process)
+        if (_process is { } process)
         {
             try
             {
-                process.Kill(entireProcessTree: true);
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
             }
             catch (InvalidOperationException)
             {
@@ -139,6 +150,7 @@ public sealed class TtsServiceHost(
             finally
             {
                 process.Dispose();
+                _process = null;
             }
         }
 

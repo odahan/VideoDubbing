@@ -18,6 +18,7 @@ namespace LocalDub.Services;
 public sealed class OllamaTranslator(
     AppSettings settings,
     IHttpClientFactory httpClientFactory,
+    OllamaModelService ollamaModels,
     ILogger<OllamaTranslator> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -76,7 +77,8 @@ public sealed class OllamaTranslator(
         double currentDuration,
         double targetDuration,
         string? modelOverride,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Glossary? glossary = null)
     {
         var model = string.IsNullOrWhiteSpace(settings.Ollama.TimingModel)
             ? modelOverride ?? settings.Ollama.Model
@@ -86,25 +88,42 @@ public sealed class OllamaTranslator(
         IChatClient chatClient = ollama;
         AIAgent agent = chatClient.AsAIAgent(
             name: "LocalDubTimingEditor",
-            instructions: "You edit concise US English narration. Obey the maximum word count exactly. Return only the rewritten sentence, with no quotes, word count, or explanation.");
-        var runOptions = CreateRunOptions(settings.Ollama.TimingContextSize, maxOutputTokens: 128);
+            instructions: "You edit concise US English narration. Use complete grammatical sentences with articles and punctuation. Obey the maximum word count exactly. Return only the rewritten sentence, with no quotes, word count, or explanation.");
+        var runOptions = CreateRunOptions(settings.Ollama.TimingContextSize, maxOutputTokens: 512);
         var ratio = Math.Clamp(targetDuration / currentDuration, 0.35, 0.98);
         var currentWordCount = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         var maximumWords = Math.Max(3, (int)Math.Floor(currentWordCount * ratio * 0.9));
         var prompt = $"Rewrite this narration using no more than {maximumWords} words. Preserve the essential meaning and a natural US narration style. Remove secondary wording if necessary. Do not return the original sentence unchanged:\n{text}";
+        if (glossary is not null)
+        {
+            prompt += "\nPreserve the spelling of these terms when present: "
+                + string.Join(", ", glossary.Preserve.Concat(glossary.Terms.Values));
+        }
         try
         {
             var response = await agent.RunAsync(
                 prompt,
                 options: runOptions,
                 cancellationToken: cancellationToken);
-            return response.Text.Trim().Trim('"');
+            var shortened = response.Text.Trim().Trim('"');
+            if (string.IsNullOrWhiteSpace(shortened))
+            {
+                throw new InvalidDataException($"Ollama/{model} returned an empty timing rewrite.");
+            }
+            return shortened;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
                 $"Ollama/{model} n'a pas répondu dans le délai de {settings.Ollama.RequestTimeoutMinutes} minutes pendant la reformulation.",
                 exception);
+        }
+        finally
+        {
+            if (settings.Ollama.UnloadBeforeTts && !cancellationToken.IsCancellationRequested)
+            {
+                await ollamaModels.UnloadAsync(model, cancellationToken);
+            }
         }
     }
 
@@ -174,6 +193,12 @@ public sealed class OllamaTranslator(
 
     private static void ApplyTranslations(IReadOnlyList<DubSegment> source, TranslationEnvelope envelope)
     {
+        if (envelope.Segments is null || envelope.Segments.Count != source.Count
+            || envelope.Segments.Any(item => item is null)
+            || envelope.Segments.Select(item => item.Id).Distinct().Count() != source.Count)
+        {
+            throw new InvalidDataException("Ollama returned missing, unexpected or duplicate segment IDs.");
+        }
         var byId = envelope.Segments.ToDictionary(item => item.Id);
         foreach (var segment in source)
         {
@@ -181,8 +206,10 @@ public sealed class OllamaTranslator(
             {
                 throw new InvalidDataException($"La traduction du segment {segment.Id} est absente.");
             }
-
-            segment.Translation = translated.Translation.Trim();
+        }
+        foreach (var segment in source)
+        {
+            segment.Translation = byId[segment.Id].Translation.Trim();
         }
     }
 

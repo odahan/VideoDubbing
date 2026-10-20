@@ -134,7 +134,7 @@ dotnet run --project src/LocalDub.NET -- dub `
   --voice-variant stable `
   --glossary ai `
   --preserve "SRP,SOLID,Semantic Kernel" `
-  --model qwen38OD:latest `
+  --model gemma4:12b `
   --yes
 ```
 

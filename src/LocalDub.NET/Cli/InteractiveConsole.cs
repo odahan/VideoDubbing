@@ -12,7 +12,7 @@ namespace LocalDub.Cli;
 public sealed class InteractiveConsole(
     VoiceProfileService voices,
     AppSettings settings,
-    ProcessRunner processRunner)
+    OllamaModelService ollamaModels)
 {
     /// <summary>Builds the dubbing options for a "dub" invocation, combining CLI flags with interactive prompts as needed.</summary>
     public async Task<DubOptions> BuildDubOptionsAsync(CliArguments arguments, CancellationToken cancellationToken)
@@ -258,20 +258,15 @@ public sealed class InteractiveConsole(
         var models = new List<string>();
         try
         {
-            var result = await processRunner.RunAsync("ollama", ["list"], cancellationToken: cancellationToken);
-            models = result.StandardOutput
-                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-                .Skip(1)
-                .Select(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name!)
-                .Where(name => !name.StartsWith("all-minilm", StringComparison.OrdinalIgnoreCase))
+            models = (await ollamaModels.ListAsync(cancellationToken))
+                .Where(name => !name.Contains("embed", StringComparison.OrdinalIgnoreCase)
+                    && !name.StartsWith("all-minilm", StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderByDescending(name => name.Equals(settings.Ollama.Model, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(ModelOrder)
                 .ToList();
         }
-        catch (Exception exception) when (exception is FileNotFoundException or ProcessExecutionException)
+        catch (Exception exception) when (exception is HttpRequestException || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             return settings.Ollama.Model;
         }

@@ -30,7 +30,7 @@ The separate voice-profile tool also has its own documentation: [LocalDub.Voices
 7. Place each sentence at its timestamp and produce a WAV exactly as long as the video.
 8. Create the SRT and a new `-EN` video without re-encoding its image.
 
-The main translator is unloaded before Chatterbox to free VRAM. Any rewrites then use the lightweight `granite4.2:3b` model.
+The main translator is unloaded before Chatterbox to free VRAM. Any rewrites then use the lightweight `granite4.2:3b` model, which is unloaded before speech synthesis resumes. All model operations use `Ollama.Endpoint` from `appsettings.json`.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ The main translator is unloaded before Chatterbox to free VRAM. Any rewrites the
 - Ollama installed and running;
 - about 20–30 GB free for tools, environments, and models.
 
-The supplied configuration uses `qwen38OD:latest`. You can select another Ollama model in `appsettings.json` or with `--model`.
+The supplied configuration uses `gemma4:12b` for translation and `granite4.2:3b` for timing rewrites. You can select another Ollama model in `appsettings.json` or with `--model`.
 
 ## Automatic setup
 
@@ -112,7 +112,7 @@ dotnet run --project src/LocalDub.NET -- dub `
   --voice-variant stable `
   --glossary ai `
   --preserve "SRP,SOLID,DRY,MAF,Semantic Kernel" `
-  --model qwen38OD:latest `
+  --model gemma4:12b `
   --yes
 ```
 
@@ -162,3 +162,11 @@ dotnet test LocalDub.NET.slnx --configuration Release -m:1
 ## Licenses and commercial use
 
 The project code is provided under the [LocalDub.NET Private Use License](Licence.md). **Read and comply with this license before using the project.** Private and non-commercial use is free; commercial use requires the copyright holder's prior written permission. Tools and models retain their respective licenses. Chatterbox and its official weights are announced under the MIT license, as is whisper.cpp. Always review the licenses of the Ollama models and voice references you use before commercial publication.
+
+## Operational checks
+
+`doctor` checks the configured Ollama server, installed models, FFmpeg execution, Python imports, and CUDA access. The applications and tests target .NET 10 (`net10.0`); `global.json` stays within the .NET 10 SDK family.
+
+Whisper chunks are limited by `Whisper.MaxSegmentCharacters` (200 by default) and split on words. The SRT is written after timing rewrites so its text matches the final narration. If a segment still cannot fit after two rewrites and the configured absolute speed limit, rendering stops with the segment ID instead of silently cutting words. Review its translation in the work directory's `segments.json` before retrying.
+
+Work directories include model, transcription, audio, timing, and voice settings, plus reference audio content. Changing these settings starts a new cache; previous work directories remain available. See [the project review](PROJECT_REVIEW.md) for the validation performed on 2026-10-20.

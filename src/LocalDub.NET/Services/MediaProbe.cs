@@ -29,8 +29,12 @@ public sealed class MediaProbe(ToolPaths tools, ProcessRunner processRunner)
         var root = json.RootElement;
         var duration = double.Parse(root.GetProperty("format").GetProperty("duration").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
         var stream = root.GetProperty("streams").EnumerateArray().FirstOrDefault();
-        var rate = stream.ValueKind == JsonValueKind.Undefined ? 48000 : int.Parse(stream.GetProperty("sample_rate").GetString()!);
-        var channels = stream.ValueKind == JsonValueKind.Undefined ? 2 : stream.GetProperty("channels").GetInt32();
+        if (stream.ValueKind == JsonValueKind.Undefined || !double.IsFinite(duration) || duration <= 0)
+        {
+            throw new InvalidDataException("The source must contain an audio stream and a positive finite duration.");
+        }
+        var rate = int.Parse(stream.GetProperty("sample_rate").GetString()!);
+        var channels = stream.GetProperty("channels").GetInt32();
         return new MediaInfo(duration, rate, channels);
     }
 

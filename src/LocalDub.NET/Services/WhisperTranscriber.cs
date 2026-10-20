@@ -34,6 +34,8 @@ public sealed class WhisperTranscriber(
             "-f", audioPath,
             "-l", settings.Whisper.Language,
             "-t", settings.Whisper.Threads.ToString(),
+            "-ml", settings.Whisper.MaxSegmentCharacters.ToString(),
+            "-sow",
             "-osrt",
             "-of", outputPrefix
         ], cancellationToken: cancellationToken);

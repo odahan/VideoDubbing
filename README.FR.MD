@@ -40,7 +40,7 @@ Le traducteur principal est déchargé avant Chatterbox afin de libérer la VRAM
 - Ollama installé et démarré ;
 - environ 20 à 30 Go libres pour les outils, environnements et modèles.
 
-La configuration fournie utilise `qwen38OD:latest`. Un autre modèle Ollama peut être choisi dans `appsettings.json` ou avec `--model`.
+La configuration fournie utilise `gemma4:12b` pour la traduction et `granite4.2:3b` pour les reformulations de timing. Un autre modèle Ollama peut être choisi dans `appsettings.json` ou avec `--model`.
 
 ## Installation automatique
 
@@ -105,7 +105,7 @@ dotnet run --project src/LocalDub.NET -- dub `
   --voice-variant stable `
   --glossary ai `
   --preserve "SRP,SOLID,DRY,MAF,Semantic Kernel" `
-  --model qwen38OD:latest `
+  --model gemma4:12b `
   --yes
 ```
 
@@ -155,3 +155,11 @@ dotnet test LocalDub.NET.slnx --configuration Release -m:1
 ## Licences et monétisation
 
 Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET](Licence.FR.md). **Lisez et respectez cette licence avant toute utilisation du projet.** L'utilisation privée et non commerciale est gratuite ; l'utilisation commerciale exige l'accord écrit préalable de l'auteur. Les outils et modèles conservent leurs licences respectives. Chatterbox et ses poids officiels sont annoncés sous licence MIT ; whisper.cpp est sous licence MIT. Vérifiez toujours les licences des modèles Ollama et des références vocales que vous choisissez avant une publication monétisée.
+
+## Vérifications de fonctionnement
+
+`doctor` vérifie le serveur Ollama configuré, les modèles installés, l’exécution de FFmpeg, les imports Python et l’accès CUDA. Les applications et les tests ciblent .NET 10 (`net10.0`) ; `global.json` conserve la famille de SDK .NET 10.
+
+`Whisper.MaxSegmentCharacters` limite les segments de transcription à 200 caractères par défaut, avec découpage aux mots. Le SRT est écrit après les reformulations pour correspondre à la narration finale. Si une phrase ne tient toujours pas après deux reformulations et l’accélération maximale configurée, le rendu s’arrête avec son identifiant au lieu de couper les mots. Sa traduction peut être corrigée dans le fichier `segments.json` du dossier de travail avant de relancer.
+
+Le cache tient compte des modèles, des réglages de transcription, d’audio et de timing, du profil vocal et du contenu de sa référence audio. Un changement de ces paramètres crée un nouveau dossier de travail ; les anciens restent disponibles. Le [rapport de révision](PROJECT_REVIEW.md) détaille les vérifications du 20 octobre 2026.

@@ -15,6 +15,7 @@ namespace LocalDub.Services;
 /// (TTS, source separation, Kokoro) needed to run entirely offline afterwards.
 /// </summary>
 public sealed class SetupService(
+    OllamaModelService ollamaModels,
     ToolPaths tools,
     AppSettings settings,
     PathResolver paths,
@@ -23,7 +24,7 @@ public sealed class SetupService(
     ILogger<SetupService> logger)
 {
     private const string FfmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
-    private const string WhisperReleaseApi = "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest";
+    private const string WhisperReleasesApi = "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=100";
     private const string UvReleaseApi = "https://api.github.com/repos/astral-sh/uv/releases/latest";
 
     /// <summary>Runs the full setup sequence, skipping any component that is already installed.</summary>
@@ -62,7 +63,7 @@ public sealed class SetupService(
 
     private async Task EnsureFfmpegAsync(CancellationToken cancellationToken)
     {
-        if (File.Exists(tools.Ffmpeg))
+        if (File.Exists(tools.Ffmpeg) && File.Exists(tools.Ffprobe))
         {
             logger.LogInformation("FFmpeg est disponible");
             return;
@@ -96,10 +97,18 @@ public sealed class SetupService(
         }
 
         EnsureWindowsForManagedBinaries();
-        var release = await GetReleaseAsync(WhisperReleaseApi, cancellationToken);
-        var asset = release.Assets.FirstOrDefault(item => item.Name.Equals("whisper-cublas-12.4.0-bin-x64.zip", StringComparison.OrdinalIgnoreCase))
-                    ?? release.Assets.FirstOrDefault(item => item.Name.Equals("whisper-bin-x64.zip", StringComparison.OrdinalIgnoreCase))
-                    ?? throw new InvalidDataException("Aucun binaire Windows x64 de whisper.cpp n'est publié dans la dernière version.");
+        using var client = httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("LocalDub.NET/1.0");
+        var releases = await client.GetFromJsonAsync<List<GitHubRelease>>(WhisperReleasesApi, cancellationToken)
+            ?? throw new InvalidDataException("Invalid whisper.cpp release list.");
+        var asset = releases.Where(release => !release.Draft && !release.Prerelease
+                && release.TagName.StartsWith('v'))
+            .Select(release => release.Assets
+                .Where(item => item.Name.StartsWith("whisper-cublas-", StringComparison.OrdinalIgnoreCase)
+                    && item.Name.EndsWith("-bin-x64.zip", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(item => item.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault())
+            .FirstOrDefault(item => item is not null)
+            ?? throw new InvalidDataException("No stable Windows x64 CUDA build of whisper.cpp was found. Install whisper-cli manually and retry.");
         var archive = Path.Combine(tools.ToolsRoot, "whisper.zip");
         var target = Path.Combine(tools.ToolsRoot, "whisper");
         await DownloadAsync(asset.BrowserDownloadUrl, archive, cancellationToken);
@@ -143,16 +152,8 @@ public sealed class SetupService(
 
     private async Task EnsureOllamaModelAsync(string model, CancellationToken cancellationToken)
     {
-        try
-        {
-            await processRunner.RunAsync("ollama", ["show", model], cancellationToken: cancellationToken);
-            logger.LogInformation("Modèle Ollama {Model} disponible", model);
-        }
-        catch (ProcessExecutionException)
-        {
-            logger.LogInformation("Téléchargement du modèle Ollama {Model}", model);
-            await processRunner.RunAsync("ollama", ["pull", model], cancellationToken: cancellationToken);
-        }
+        logger.LogInformation("Checking Ollama model {Model}", model);
+        await ollamaModels.EnsureInstalledAsync(model, cancellationToken);
     }
 
     private async Task EnsurePythonEnvironmentAsync(
@@ -291,7 +292,11 @@ public sealed class SetupService(
         // independently of LocalDub.NET), so full integrity verification against a reference hash
         // is not possible here. The SHA-256 of the downloaded file is still logged so that a user
         // can audit or compare it manually if needed (e.g. against a checksum published upstream).
-        var digest = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(temporary, cancellationToken))).ToLowerInvariant();
+        string digest;
+        await using (var downloaded = File.OpenRead(temporary))
+        {
+            digest = Convert.ToHexString(await SHA256.HashDataAsync(downloaded, cancellationToken)).ToLowerInvariant();
+        }
         logger.LogInformation("Téléchargement terminé : {File} (SHA-256 {Digest})", Path.GetFileName(destination), digest);
 
         File.Move(temporary, destination, overwrite: true);
@@ -324,6 +329,15 @@ public sealed class SetupService(
 
     private sealed class GitHubRelease
     {
+        [JsonPropertyName("tag_name")]
+        public string TagName { get; init; } = string.Empty;
+
+        [JsonPropertyName("draft")]
+        public bool Draft { get; init; }
+
+        [JsonPropertyName("prerelease")]
+        public bool Prerelease { get; init; }
+
         [JsonPropertyName("assets")]
         public List<GitHubAsset> Assets { get; init; } = [];
     }
