@@ -76,6 +76,7 @@ public sealed class WhisperSettings
 public sealed class TtsSettings
 {
     public string ServiceUrl { get; init; } = "http://127.0.0.1:5055";
+    public string MultilingualServiceUrl { get; init; } = "http://127.0.0.1:5056";
     public bool AutoStart { get; init; } = true;
     public string Engine { get; init; } = "chatterbox-turbo";
     public string Language { get; init; } = "en";

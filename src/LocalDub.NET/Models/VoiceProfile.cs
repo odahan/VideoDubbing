@@ -21,6 +21,22 @@ public sealed class VoiceProfile
     [JsonPropertyName("engine")]
     public string Engine { get; init; } = "chatterbox-turbo";
 
+    /// <summary>Optional language override; null uses the application TTS language.</summary>
+    [JsonPropertyName("language")]
+    public string? Language { get; init; }
+
+    [JsonPropertyName("exaggeration")]
+    public double Exaggeration { get; init; } = 0.5;
+
+    [JsonPropertyName("cfgWeight")]
+    public double CfgWeight { get; init; } = 0.5;
+
+    [JsonPropertyName("minP")]
+    public double MinP { get; init; } = 0.05;
+
+    [JsonPropertyName("outputGain")]
+    public double OutputGain { get; init; } = 1.0;
+
     [JsonPropertyName("referenceAudio")]
     public string? ReferenceAudio { get; init; }
 

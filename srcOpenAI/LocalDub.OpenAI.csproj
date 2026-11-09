@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Version>10.0.0</Version>
+    <AssemblyName>localdub-openai</AssemblyName>
+    <RootNamespace>LocalDub</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <InternalsVisibleTo Include="LocalDub.OpenAI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Compile Include="../src/LocalDub.NET/Models/*.cs" Exclude="../src/LocalDub.NET/Models/DubOptions.cs;../src/LocalDub.NET/Models/DubSegment.cs" LinkBase="Shared/Models" />
+    <Compile Include="../src/LocalDub.NET/Utils/*.cs" LinkBase="Shared/Utils" />
+    <Compile Include="../src/LocalDub.NET/Cli/CliArguments.cs;../src/LocalDub.NET/Cli/CliParser.cs" LinkBase="Shared/Cli" />
+    <Compile Include="../src/LocalDub.NET/Services/*.cs"
+             Exclude="../src/LocalDub.NET/Services/Ollama*.cs;../src/LocalDub.NET/Services/AudioTimelineBuilder.cs;../src/LocalDub.NET/Services/DubPipeline.cs;../src/LocalDub.NET/Services/DoctorService.cs;../src/LocalDub.NET/Services/SetupService.cs;../src/LocalDub.NET/Services/WhisperTranscriber.cs"
+             LinkBase="Shared/Services" />
+    <None Update="appsettings.openai.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

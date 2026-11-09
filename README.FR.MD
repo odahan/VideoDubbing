@@ -1,6 +1,17 @@
 # LocalDub.NET
 
-**Français** | [English](README.md)
+**Français** | [English](https://github.com/odahan/VideoDubbing/blob/main/README.md)
+
+## LocalDub OpenAI 10.0.0
+
+L’édition OpenAI utilise un compte ChatGPT connecté pour traduire et raccourcir des phrases entières. Elle s’appuie sur la même installation audio locale pour la transcription, la synthèse vocale et le mixage.
+
+| Langue | README de l’édition OpenAI | Manuel |
+| --- | --- | --- |
+| Français | [README](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/README.FR.md) | [Manuel utilisateur](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/MANUAL.FR.md) |
+| English | [README](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/README.md) | [User manual](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/MANUAL.EN.md) |
+
+## LocalDub.NET avec Ollama
 
 LocalDub.NET est un pipeline local de doublage français vers anglais US pour les vidéos à un seul locuteur. L’orchestration est écrite en C#/.NET ; FFmpeg, whisper.cpp, Ollama et Chatterbox s’exécutent localement. Aucune donnée de la vidéo n’est envoyée à un service cloud.
 
@@ -14,10 +25,10 @@ La vidéo d’origine n’est jamais modifiée. Pour `demo.mp4`, LocalDub crée 
 
 Choisissez votre langue :
 
-- [Guide utilisateur en français](src/LocalDub.NET/README.md)
-- [English user guide](src/LocalDub.NET/README.EN.md)
+- [Guide utilisateur en français](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.NET/README.md)
+- [English user guide](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.NET/README.EN.md)
 
-L’outil séparé de gestion des profils vocaux possède aussi sa [documentation](src/LocalDub.Voices/README.md).
+L’outil séparé de gestion des profils vocaux possède aussi sa [documentation](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.Voices/README.md).
 
 ## Pipeline
 
@@ -154,7 +165,7 @@ dotnet test LocalDub.NET.slnx --configuration Release -m:1
 
 ## Licences et monétisation
 
-Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET](Licence.FR.md). **Lisez et respectez cette licence avant toute utilisation du projet.** L'utilisation privée et non commerciale est gratuite ; l'utilisation commerciale exige l'accord écrit préalable de l'auteur. Les outils et modèles conservent leurs licences respectives. Chatterbox et ses poids officiels sont annoncés sous licence MIT ; whisper.cpp est sous licence MIT. Vérifiez toujours les licences des modèles Ollama et des références vocales que vous choisissez avant une publication monétisée.
+Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET](https://github.com/odahan/VideoDubbing/blob/main/Licence.FR.md). **Lisez et respectez cette licence avant toute utilisation du projet.** L'utilisation privée et non commerciale est gratuite ; l'utilisation commerciale exige l'accord écrit préalable de l'auteur. Les outils et modèles conservent leurs licences respectives. Chatterbox et ses poids officiels sont annoncés sous licence MIT ; whisper.cpp est sous licence MIT. Vérifiez toujours les licences des modèles Ollama et des références vocales que vous choisissez avant une publication monétisée.
 
 ## Vérifications de fonctionnement
 
@@ -162,4 +173,4 @@ Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET
 
 `Whisper.MaxSegmentCharacters` limite les segments de transcription à 200 caractères par défaut, avec découpage aux mots. Le SRT est écrit après les reformulations pour correspondre à la narration finale. Si une phrase ne tient toujours pas après deux reformulations et l’accélération maximale configurée, le rendu s’arrête avec son identifiant au lieu de couper les mots. Sa traduction peut être corrigée dans le fichier `segments.json` du dossier de travail avant de relancer.
 
-Le cache tient compte des modèles, des réglages de transcription, d’audio et de timing, du profil vocal et du contenu de sa référence audio. Un changement de ces paramètres crée un nouveau dossier de travail ; les anciens restent disponibles. Le [rapport de révision](PROJECT_REVIEW.md) détaille les vérifications du 20 octobre 2026.
+Le cache tient compte des modèles, des réglages de transcription, d’audio et de timing, du profil vocal et du contenu de sa référence audio. Un changement de ces paramètres crée un nouveau dossier de travail ; les anciens restent disponibles. Le [rapport de révision](https://github.com/odahan/VideoDubbing/blob/main/PROJECT_REVIEW.md) détaille les vérifications du 20 octobre 2026.

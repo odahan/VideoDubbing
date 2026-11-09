@@ -19,14 +19,29 @@ public sealed class TtsServiceHost(
     ILogger<TtsServiceHost> logger) : IAsyncDisposable
 {
     private Process? _process;
+    private string? _activeEngine;
+
+    /// <summary>Returns the endpoint for a supported voice engine.</summary>
+    public string GetServiceUrl(string engine) => engine switch
+    {
+        "chatterbox-turbo" => settings.Tts.ServiceUrl,
+        "chatterbox-multilingual-v3" => settings.Tts.MultilingualServiceUrl,
+        _ => throw new ArgumentException($"Unsupported voice engine: {engine}", nameof(engine))
+    };
 
     /// <summary>
     /// Ensures the Chatterbox service is reachable, starting it automatically if configured to do
     /// so and it is not already healthy.
     /// </summary>
-    public async Task EnsureRunningAsync(CancellationToken cancellationToken)
+    public async Task EnsureRunningAsync(CancellationToken cancellationToken, string? engine = null)
     {
-        if (await IsHealthyAsync(cancellationToken))
+        engine ??= settings.Tts.Engine;
+        var serviceUrl = GetServiceUrl(engine);
+        if (_process is not null && _activeEngine != engine)
+        {
+            await DisposeAsync();
+        }
+        if (await IsHealthyAsync(serviceUrl, engine, cancellationToken))
         {
             return;
         }
@@ -36,15 +51,18 @@ public sealed class TtsServiceHost(
             throw new InvalidOperationException($"Le service TTS ne répond pas sur {settings.Tts.ServiceUrl}.");
         }
 
-        if (!File.Exists(tools.TtsPython))
+        var python = engine == "chatterbox-multilingual-v3"
+            ? Path.Combine(tools.PythonRoot, "multilingual", "Scripts", "python.exe")
+            : tools.TtsPython;
+        if (!File.Exists(python))
         {
-            throw new FileNotFoundException("L'environnement Chatterbox est absent. Exécutez 'localdub setup'.", tools.TtsPython);
+            throw new FileNotFoundException($"The Python environment for {engine} is missing: {python}", python);
         }
 
         var serviceDirectory = Path.Combine(paths.ProjectRoot, "tts-service");
         var startInfo = new ProcessStartInfo
         {
-            FileName = tools.TtsPython,
+            FileName = python,
             WorkingDirectory = serviceDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -53,12 +71,14 @@ public sealed class TtsServiceHost(
         };
         startInfo.ArgumentList.Add("-m");
         startInfo.ArgumentList.Add("uvicorn");
-        startInfo.ArgumentList.Add("app:app");
+        startInfo.ArgumentList.Add(engine == "chatterbox-multilingual-v3" ? "multilingual_app:app" : "app:app");
         startInfo.ArgumentList.Add("--host");
         startInfo.ArgumentList.Add("127.0.0.1");
         startInfo.ArgumentList.Add("--port");
-        startInfo.ArgumentList.Add(new Uri(settings.Tts.ServiceUrl).Port.ToString());
+        startInfo.ArgumentList.Add(new Uri(serviceUrl).Port.ToString());
+        startInfo.Environment["LOCALDUB_MODELS_ROOT"] = tools.ModelsRoot;
         _process = Process.Start(startInfo) ?? throw new InvalidOperationException("Impossible de démarrer Chatterbox.");
+        _activeEngine = engine;
         _process.OutputDataReceived += (_, eventArgs) =>
         {
             if (!string.IsNullOrWhiteSpace(eventArgs.Data)) logger.LogDebug("Chatterbox : {Message}", eventArgs.Data);
@@ -79,7 +99,7 @@ public sealed class TtsServiceHost(
                 throw new InvalidOperationException($"Le service Chatterbox s'est arrêté avec le code {_process.ExitCode}.");
             }
 
-            if (await IsHealthyAsync(cancellationToken))
+            if (await IsHealthyAsync(serviceUrl, engine, cancellationToken))
             {
                 return;
             }
@@ -101,17 +121,17 @@ public sealed class TtsServiceHost(
         logger.LogDebug("Chatterbox : {Message}", message);
     }
 
-    private async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
+    private async Task<bool> IsHealthyAsync(string serviceUrl, string expectedEngine, CancellationToken cancellationToken)
     {
         try
         {
             using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(2);
-            using var response = await client.GetAsync($"{settings.Tts.ServiceUrl.TrimEnd('/')}/health", cancellationToken);
+            using var response = await client.GetAsync($"{serviceUrl.TrimEnd('/')}/health", cancellationToken);
             if (!response.IsSuccessStatusCode) return false;
             var health = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
             return health.TryGetProperty("status", out var status) && status.GetString() == "ok"
-                && health.TryGetProperty("engine", out var engine) && engine.GetString() == settings.Tts.Engine
+                && health.TryGetProperty("engine", out var engine) && engine.GetString() == expectedEngine
                 && health.TryGetProperty("cuda", out var cuda) && cuda.ValueKind == JsonValueKind.True;
         }
         catch (HttpRequestException)

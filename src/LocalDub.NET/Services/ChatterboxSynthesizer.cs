@@ -5,7 +5,7 @@ using LocalDub.Models;
 namespace LocalDub.Services;
 
 /// <summary>
-/// Synthesizes English narration audio for dub segments via the local Chatterbox TTS HTTP service.
+/// Synthesizes narration in the selected profile language through its local Chatterbox service.
 /// </summary>
 public sealed class ChatterboxSynthesizer(
     AppSettings settings,
@@ -20,20 +20,24 @@ public sealed class ChatterboxSynthesizer(
         VoiceProfile profile,
         CancellationToken cancellationToken)
     {
-        await serviceHost.EnsureRunningAsync(cancellationToken);
+        await serviceHost.EnsureRunningAsync(cancellationToken, profile.Engine);
         using var client = httpClientFactory.CreateClient();
         client.Timeout = TimeSpan.FromMinutes(settings.Tts.RequestTimeoutMinutes);
         var request = new
         {
             text,
-            language = settings.Tts.Language,
+            language = profile.Language ?? settings.Tts.Language,
             reference = profiles.ResolveReference(profile),
             temperature = profile.Temperature,
             repetitionPenalty = profile.RepetitionPenalty,
             topP = profile.TopP,
-            topK = profile.TopK
+            topK = profile.TopK,
+            exaggeration = profile.Exaggeration,
+            cfgWeight = profile.CfgWeight,
+            minP = profile.MinP,
+            outputGain = profile.OutputGain
         };
-        using var response = await client.PostAsJsonAsync($"{settings.Tts.ServiceUrl.TrimEnd('/')}/tts", request, cancellationToken);
+        using var response = await client.PostAsJsonAsync($"{serviceHost.GetServiceUrl(profile.Engine).TrimEnd('/')}/tts", request, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var target = File.Create(outputWav);
@@ -61,6 +65,11 @@ public sealed class ChatterboxSynthesizer(
                 Id = profile.Id,
                 DisplayName = profile.DisplayName,
                 Engine = profile.Engine,
+                Language = profile.Language,
+                Exaggeration = profile.Exaggeration,
+                CfgWeight = profile.CfgWeight,
+                MinP = profile.MinP,
+                OutputGain = profile.OutputGain,
                 ReferenceAudio = profile.ReferenceAudio,
                 Temperature = tuning.Temperature,
                 RepetitionPenalty = tuning.RepetitionPenalty,

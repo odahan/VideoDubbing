@@ -1,6 +1,17 @@
 # LocalDub.NET
 
-[Français](README.FR.MD) | **English**
+[Français](https://github.com/odahan/VideoDubbing/blob/main/README.FR.MD) | **English**
+
+## LocalDub OpenAI 10.0.0
+
+The OpenAI edition translates and shortens complete narration units with a connected ChatGPT account. It uses the same local audio installation for transcription, voice synthesis, and mixing.
+
+| Language | OpenAI edition README | User manual |
+| --- | --- | --- |
+| English | [README](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/README.md) | [User manual](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/MANUAL.EN.md) |
+| Français | [README](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/README.FR.md) | [Manuel utilisateur](https://github.com/odahan/VideoDubbing/blob/main/srcOpenAI/MANUAL.FR.md) |
+
+## LocalDub.NET with Ollama
 
 LocalDub.NET is a fully local French-to-US-English video dubbing pipeline for single-speaker videos. Orchestration is written in C#/.NET; FFmpeg, whisper.cpp, Ollama, and Chatterbox run on your computer. No video data is sent to a cloud service.
 
@@ -14,10 +25,10 @@ The source video is never changed. For `demo.mp4`, LocalDub creates `demo-EN.mp4
 
 Choose your language:
 
-- [English user guide](src/LocalDub.NET/README.EN.md)
-- [Guide utilisateur français](src/LocalDub.NET/README.md)
+- [English user guide](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.NET/README.EN.md)
+- [Guide utilisateur français](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.NET/README.md)
 
-The separate voice-profile tool also has its own documentation: [LocalDub.Voices](src/LocalDub.Voices/README.md).
+The separate voice-profile tool also has its own documentation: [LocalDub.Voices](https://github.com/odahan/VideoDubbing/blob/main/src/LocalDub.Voices/README.md).
 
 ## Pipeline
 
@@ -161,7 +172,7 @@ dotnet test LocalDub.NET.slnx --configuration Release -m:1
 
 ## Licenses and commercial use
 
-The project code is provided under the [LocalDub.NET Private Use License](Licence.md). **Read and comply with this license before using the project.** Private and non-commercial use is free; commercial use requires the copyright holder's prior written permission. Tools and models retain their respective licenses. Chatterbox and its official weights are announced under the MIT license, as is whisper.cpp. Always review the licenses of the Ollama models and voice references you use before commercial publication.
+The project code is provided under the [LocalDub.NET Private Use License](https://github.com/odahan/VideoDubbing/blob/main/Licence.md). **Read and comply with this license before using the project.** Private and non-commercial use is free; commercial use requires the copyright holder's prior written permission. Tools and models retain their respective licenses. Chatterbox and its official weights are announced under the MIT license, as is whisper.cpp. Always review the licenses of the Ollama models and voice references you use before commercial publication.
 
 ## Operational checks
 
@@ -169,4 +180,4 @@ The project code is provided under the [LocalDub.NET Private Use License](Licenc
 
 Whisper chunks are limited by `Whisper.MaxSegmentCharacters` (200 by default) and split on words. The SRT is written after timing rewrites so its text matches the final narration. If a segment still cannot fit after two rewrites and the configured absolute speed limit, rendering stops with the segment ID instead of silently cutting words. Review its translation in the work directory's `segments.json` before retrying.
 
-Work directories include model, transcription, audio, timing, and voice settings, plus reference audio content. Changing these settings starts a new cache; previous work directories remain available. See [the project review](PROJECT_REVIEW.md) for the validation performed on 2026-10-20.
+Work directories include model, transcription, audio, timing, and voice settings, plus reference audio content. Changing these settings starts a new cache; previous work directories remain available. See [the project review](https://github.com/odahan/VideoDubbing/blob/main/PROJECT_REVIEW.md) for the validation performed on 2026-10-20.
