@@ -100,7 +100,7 @@ dotnet run --project src/LocalDub.Voices
 
 ## Interactive dubbing
 
-Run LocalDub without arguments to start the guided assistant:
+Open [RunWithMenu.bat](https://github.com/odahan/VideoDubbing/blob/main/RunWithMenu.bat) to launch the Ollama edition on Windows. You can also run LocalDub without arguments to start the same guided assistant.
 
 ```powershell
 dotnet run --project src/LocalDub.NET
@@ -178,6 +178,8 @@ The project code is provided under the [LocalDub.NET Private Use License](https:
 
 `doctor` checks the configured Ollama server, installed models, FFmpeg execution, Python imports, and CUDA access. The applications and tests target .NET 10 (`net10.0`); `global.json` stays within the .NET 10 SDK family.
 
-Whisper chunks are limited by `Whisper.MaxSegmentCharacters` (200 by default) and split on words. The SRT is written after timing rewrites so its text matches the final narration. If a segment still cannot fit after two rewrites and the configured absolute speed limit, rendering stops with the segment ID instead of silently cutting words. Review its translation in the work directory's `segments.json` before retrying.
+Whisper chunks are limited by `Whisper.MaxSegmentCharacters` (200 by default) and split on words. LocalDub removes zero-duration duplicates already covered by an adjacent timed cue, then validates the timeline. Granite receives the glossary spellings present in the current line. LocalDub skips empty rewrites and those that exceed the word budget.
+
+The pipeline keeps the shortest measured clip and its matching text. It writes the SRT after selecting the final narration. If the shortest clip still exceeds the configured absolute speed limit, rendering stops with the segment ID. Review its translation in the work directory's `segments.json` before retrying.
 
 Work directories include model, transcription, audio, timing, and voice settings, plus reference audio content. Changing these settings starts a new cache; previous work directories remain available. See [the project review](https://github.com/odahan/VideoDubbing/blob/main/PROJECT_REVIEW.md) for the validation performed on 2026-10-20.

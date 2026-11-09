@@ -90,8 +90,9 @@ public sealed class DubPipeline(
         }
 
         var segmentsPath = Path.Combine(workDirectory, "segments.json");
+        var hasCachedSegments = File.Exists(segmentsPath);
         IReadOnlyList<DubSegment> segments;
-        if (File.Exists(segmentsPath))
+        if (hasCachedSegments)
         {
             segments = await LoadSegmentsAsync(segmentsPath, cancellationToken);
             logger.LogInformation("Reprise de {Count} segments existants", segments.Count);
@@ -100,8 +101,20 @@ public sealed class DubPipeline(
         {
             var transcription = await transcriber.TranscribeAsync(asrWav, Path.Combine(workDirectory, "transcription-fr"), cancellationToken);
             segments = transcription.Segments;
+        }
+
+        var normalizedSegments = SegmentTiming.RemoveRedundantZeroDurationSegments(segments);
+        var removedCount = segments.Count - normalizedSegments.Count;
+        segments = normalizedSegments;
+        if (removedCount > 0)
+        {
+            logger.LogWarning("Sous-titres en double sans durée ignorés : {Count}", removedCount);
+        }
+        if (!hasCachedSegments || removedCount > 0)
+        {
             await SaveSegmentsAsync(segmentsPath, segments, cancellationToken);
         }
+        SegmentTiming.Validate(segments, media.DurationSeconds);
 
         var glossary = await glossaries.LoadAsync(
             options.GlossaryName, options.PreservedTerms, cancellationToken);

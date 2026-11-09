@@ -93,7 +93,7 @@ dotnet run --project src/LocalDub.Voices
 
 ## Doublage interactif
 
-Lancez LocalDub sans argument pour afficher l’assistant :
+Ouvrez [RunWithMenu.bat](https://github.com/odahan/VideoDubbing/blob/main/RunWithMenu.bat) pour lancer l’édition Ollama sous Windows. La commande suivante ouvre le même assistant.
 
 ```powershell
 dotnet run --project src/LocalDub.NET
@@ -171,6 +171,8 @@ Le code du projet est fourni sous la [licence d'utilisation privée LocalDub.NET
 
 `doctor` vérifie le serveur Ollama configuré, les modèles installés, l’exécution de FFmpeg, les imports Python et l’accès CUDA. Les applications et les tests ciblent .NET 10 (`net10.0`) ; `global.json` conserve la famille de SDK .NET 10.
 
-`Whisper.MaxSegmentCharacters` limite les segments de transcription à 200 caractères par défaut, avec découpage aux mots. Le SRT est écrit après les reformulations pour correspondre à la narration finale. Si une phrase ne tient toujours pas après deux reformulations et l’accélération maximale configurée, le rendu s’arrête avec son identifiant au lieu de couper les mots. Sa traduction peut être corrigée dans le fichier `segments.json` du dossier de travail avant de relancer.
+`Whisper.MaxSegmentCharacters` limite les segments de transcription à 200 caractères par défaut, avec découpage aux mots. LocalDub retire les doublons sans durée déjà couverts par une entrée voisine, puis valide les repères. Granite reçoit les graphies du glossaire présentes dans le texte courant. LocalDub écarte les reformulations vides ou trop longues.
+
+Le pipeline conserve le clip mesuré le plus court et le texte correspondant. Le SRT est écrit après la sélection de la narration finale. Si le clip le plus court dépasse encore le plafond de vitesse configuré, le rendu s’arrête avec l’identifiant du segment. Vous pouvez corriger sa traduction dans le fichier de travail `segments.json` avant de relancer.
 
 Le cache tient compte des modèles, des réglages de transcription, d’audio et de timing, du profil vocal et du contenu de sa référence audio. Un changement de ces paramètres crée un nouveau dossier de travail ; les anciens restent disponibles. Le [rapport de révision](https://github.com/odahan/VideoDubbing/blob/main/PROJECT_REVIEW.md) détaille les vérifications du 20 octobre 2026.

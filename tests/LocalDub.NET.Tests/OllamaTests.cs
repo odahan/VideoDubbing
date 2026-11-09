@@ -84,6 +84,18 @@ public sealed class OllamaTests
     }
 
     [Fact]
+    public async Task RejectsRewriteThatExceedsTheWordBudget()
+    {
+        var factory = ChatFactory("Use oscillators, envelopes, filters, velocity, and aftertouch.");
+        var settings = new AppSettings { Ollama = new() { UnloadBeforeTts = false } };
+        var translator = new OllamaTranslator(settings, factory, new(settings, factory), NullLogger<OllamaTranslator>.Instance);
+
+        var result = await translator.ShortenAsync("Its step grid lets you sequence effects", 12, 6, null, default);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task AppliesStructuredTranslationFromGemma()
     {
         var factory = ChatFactory("{\"segments\":[{\"id\":7,\"translation\":\"Hello and welcome.\"}]}");

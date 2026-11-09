@@ -71,8 +71,9 @@ public sealed class OllamaTranslator(
     /// <summary>
     /// Asks the timing model to rewrite <paramref name="text"/> so that its spoken duration shrinks
     /// from <paramref name="currentDuration"/> towards <paramref name="targetDuration"/>.
+    /// Returns null when the model does not supply a rewrite within the word budget.
     /// </summary>
-    public async Task<string> ShortenAsync(
+    public async Task<string?> ShortenAsync(
         string text,
         double currentDuration,
         double targetDuration,
@@ -80,6 +81,12 @@ public sealed class OllamaTranslator(
         CancellationToken cancellationToken,
         Glossary? glossary = null)
     {
+        var currentWordCount = CountWords(text);
+        if (currentWordCount < 2)
+        {
+            return null;
+        }
+
         var model = string.IsNullOrWhiteSpace(settings.Ollama.TimingModel)
             ? modelOverride ?? settings.Ollama.Model
             : settings.Ollama.TimingModel;
@@ -88,16 +95,23 @@ public sealed class OllamaTranslator(
         IChatClient chatClient = ollama;
         AIAgent agent = chatClient.AsAIAgent(
             name: "LocalDubTimingEditor",
-            instructions: "You edit concise US English narration. Use complete grammatical sentences with articles and punctuation. Obey the maximum word count exactly. Return only the rewritten sentence, with no quotes, word count, or explanation.");
+            instructions: "You shorten US English narration for dubbing. Keep the original meaning, names, and numbers. " +
+                "Preserve sentence fragments that connect to the next segment. Do not add examples, details, or explanations. " +
+                "Return only the rewritten text within the word limit.");
         var runOptions = CreateRunOptions(settings.Ollama.TimingContextSize, maxOutputTokens: 512);
         var ratio = Math.Clamp(targetDuration / currentDuration, 0.35, 0.98);
-        var currentWordCount = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        var maximumWords = Math.Max(3, (int)Math.Floor(currentWordCount * ratio * 0.9));
+        var maximumWords = Math.Max(1, (int)Math.Floor(currentWordCount * ratio * 0.9));
         var prompt = $"Rewrite this narration using no more than {maximumWords} words. Preserve the essential meaning and a natural US narration style. Remove secondary wording if necessary. Do not return the original sentence unchanged:\n{text}";
         if (glossary is not null)
         {
-            prompt += "\nPreserve the spelling of these terms when present: "
-                + string.Join(", ", glossary.Preserve.Concat(glossary.Terms.Values));
+            var terms = glossary.Preserve.Concat(glossary.Terms.Values)
+                .Where(term => text.Contains(term, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (terms.Length > 0)
+            {
+                prompt += "\nPreserve the spelling of these terms: " + string.Join(", ", terms);
+            }
         }
         try
         {
@@ -106,9 +120,12 @@ public sealed class OllamaTranslator(
                 options: runOptions,
                 cancellationToken: cancellationToken);
             var shortened = response.Text.Trim().Trim('"');
-            if (string.IsNullOrWhiteSpace(shortened))
+            var wordCount = CountWords(shortened);
+            if (wordCount == 0 || wordCount > maximumWords)
             {
-                throw new InvalidDataException($"Ollama/{model} returned an empty timing rewrite.");
+                logger.LogWarning("Reformulation Ollama ignorée : {WordCount} mots pour un maximum de {MaximumWords}",
+                    wordCount, maximumWords);
+                return null;
             }
             return shortened;
         }
@@ -126,6 +143,9 @@ public sealed class OllamaTranslator(
             }
         }
     }
+
+    private static int CountWords(string text) =>
+        text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
     private HttpClient CreateHttpClient()
     {

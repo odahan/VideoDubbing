@@ -33,14 +33,7 @@ public sealed class AudioTimelineBuilder(
         CancellationToken cancellationToken,
         Glossary? glossary = null)
     {
-        if (segments.Count == 0)
-        {
-            throw new InvalidDataException("No speech segments are available for synthesis.");
-        }
-        for (var index = 0; index < segments.Count; index++)
-        {
-            SegmentTiming.GetAvailableSeconds(segments, index, videoDurationSeconds);
-        }
+        SegmentTiming.Validate(segments, videoDurationSeconds);
 
         var clipsDirectory = Path.Combine(workDirectory, "tts-clips");
         Directory.CreateDirectory(clipsDirectory);
@@ -86,42 +79,67 @@ public sealed class AudioTimelineBuilder(
         Glossary? glossary,
         CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 3; attempt++)
+        var bestText = segment.Translation;
+        var bestDuration = double.PositiveInfinity;
+        var candidatePath = Path.ChangeExtension(rawPath, $".{Guid.NewGuid():N}.candidate.wav");
+        try
         {
-            await synthesizer.SynthesizeAsync(segment.Translation, rawPath, voice, cancellationToken);
-            var duration = await mediaProbe.GetAudioDurationAsync(rawPath, cancellationToken);
-            segment.SynthesizedDurationSeconds = duration;
-            var requiredSpeed = duration / availableSeconds;
-            if (requiredSpeed <= settings.Tts.MaxSpeedRatio)
+            await TryCandidateAsync(bestText);
+            if (bestDuration / availableSeconds > settings.Tts.AbsoluteMaxSpeedRatio)
             {
-                segment.AppliedSpeedRatio = Math.Max(1, requiredSpeed);
-                return;
+                logger.LogInformation("Nouvel essai vocal du segment {Id} sans changer son texte", segment.Id);
+                await TryCandidateAsync(bestText);
             }
 
-            if (attempt < 2)
+            for (var attempt = 0; attempt < 2 && bestDuration / availableSeconds > settings.Tts.MaxSpeedRatio; attempt++)
             {
                 logger.LogInformation("Reformulation du segment {Id} pour respecter son créneau", segment.Id);
-                segment.Translation = await translator.ShortenAsync(
-                    segment.Translation, duration, availableSeconds * settings.Tts.MaxSpeedRatio, ollamaModel, cancellationToken, glossary);
+                var targetSeconds = availableSeconds * settings.Tts.MaxSpeedRatio;
+                var shortened = await translator.ShortenAsync(
+                    bestText, bestDuration, attempt == 0 ? targetSeconds : targetSeconds * 0.85,
+                    ollamaModel, cancellationToken, glossary);
+                if (shortened is not null)
+                {
+                    await TryCandidateAsync(shortened);
+                }
             }
         }
+        finally
+        {
+            File.Delete(candidatePath);
+        }
 
-        var finalDuration = segment.SynthesizedDurationSeconds;
-        var fallbackSpeed = Math.Max(1, finalDuration / availableSeconds);
-        if (fallbackSpeed > settings.Tts.AbsoluteMaxSpeedRatio)
+        var speed = Math.Max(1, bestDuration / availableSeconds);
+        if (speed > settings.Tts.AbsoluteMaxSpeedRatio)
         {
             throw new InvalidDataException(
-                $"Segment {segment.Id} requires speed x{fallbackSpeed:0.00}, exceeding the limit " +
+                $"Segment {segment.Id} requires speed x{speed:0.00} for its shortest clip " +
+                $"({bestDuration:0.00} s for {availableSeconds:0.00} s), exceeding the limit " +
                 $"x{settings.Tts.AbsoluteMaxSpeedRatio:0.00}. Shorten its translation in segments.json and retry; " +
                 "rendering was stopped to avoid cutting spoken words.");
         }
 
-        segment.AppliedSpeedRatio = fallbackSpeed;
-        logger.LogWarning(
-            "Segment {Id} encore trop long après deux reformulations : accélération exceptionnelle x{Speed:0.00} (limite habituelle x{Limit:0.00})",
-            segment.Id,
-            fallbackSpeed,
-            settings.Tts.MaxSpeedRatio);
+        segment.Translation = bestText;
+        segment.SynthesizedDurationSeconds = bestDuration;
+        segment.AppliedSpeedRatio = speed;
+        if (speed > settings.Tts.MaxSpeedRatio)
+        {
+            logger.LogWarning(
+                "Segment {Id} : accélération exceptionnelle x{Speed:0.00} (limite habituelle x{Limit:0.00})",
+                segment.Id, speed, settings.Tts.MaxSpeedRatio);
+        }
+
+        async Task TryCandidateAsync(string text)
+        {
+            await synthesizer.SynthesizeAsync(text, candidatePath, voice, cancellationToken);
+            var duration = await mediaProbe.GetAudioDurationAsync(candidatePath, cancellationToken);
+            if (duration < bestDuration)
+            {
+                File.Move(candidatePath, rawPath, overwrite: true);
+                bestText = text;
+                bestDuration = duration;
+            }
+        }
     }
 
     private Task RenderSlotAsync(
