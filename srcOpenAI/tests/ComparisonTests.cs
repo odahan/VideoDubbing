@@ -149,6 +149,13 @@ public sealed class ComparisonTests
             SpokenEnglish.ForSynthesis("a VST, two VSTs, VST3 and MyVST."));
     }
 
+    [Fact]
+    public void SpeechPronouncesDjAndItsSFormsWithoutChangingOtherWords()
+    {
+        Assert.Equal("A deejay, two deejays, a deejays mix, a deejays track and DJing.",
+            SpokenEnglish.ForSynthesis("A DJ, two DJs, a DJ's mix, a DJ’s track and DJing."));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
